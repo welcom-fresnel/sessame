@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'providers/project_provider.dart';
 import 'providers/conversation_provider.dart';
 import 'providers/theme_provider.dart';
@@ -8,6 +9,7 @@ import 'screens/splash_screen.dart'; // Importation du SplashScreen
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  await dotenv.load();
   runApp(const MyApp());
 }
 
