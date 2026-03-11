@@ -28,8 +28,19 @@ class ProjectProvider extends ChangeNotifier {
 
   // Initialize and load projects
   Future<void> initialize() async {
-    await _notificationService.initialize();
-    await loadProjects();
+    try {
+      await _notificationService.initialize();
+    } catch (e) {
+      print('⚠️ Notification initialization failed: $e');
+      // Continue anyway, notifications are not critical
+    }
+    try {
+      await loadProjects();
+    } catch (e) {
+      print('❌ Error loading projects during initialization: $e');
+      // At least create an empty list so the app doesn't crash
+      _projects = [];
+    }
   }
 
   // Load all projects
@@ -39,6 +50,7 @@ class ProjectProvider extends ChangeNotifier {
 
     try {
       _projects = await _dbService.getAllProjects();
+      await _syncProjectNotifications();
     } catch (e) {
       print('Error loading projects: $e');
     } finally {
@@ -108,6 +120,11 @@ class ProjectProvider extends ChangeNotifier {
           lastUpdateDate: DateTime.now(),
         );
         await _dbService.updateProject(updatedProject);
+        await _notificationService.scheduleProjectNotification(updatedProject);
+        await _notifyProgressMilestone(
+          project: project,
+          updatedProject: updatedProject,
+        );
         await loadProjects();
       }
     } catch (e) {
@@ -180,6 +197,39 @@ class ProjectProvider extends ChangeNotifier {
 
   Future<Map<String, int>> getStatistics() async {
     return await _dbService.getProjectStatistics();
+  }
+
+  Future<void> _syncProjectNotifications() async {
+    for (final project in _projects) {
+      if (project.status == 'en_cours') {
+        await _notificationService.scheduleProjectNotification(project);
+      }
+    }
+  }
+
+  Future<void> _notifyProgressMilestone({
+    required Project project,
+    required Project updatedProject,
+  }) async {
+    if (project.status != 'en_cours') return;
+
+    const milestones = [0.25, 0.5, 0.75, 1.0];
+    final previous = project.progress;
+    final current = updatedProject.progress;
+
+    for (final milestone in milestones) {
+      if (previous < milestone && current >= milestone) {
+        final percent = (milestone * 100).toInt();
+        await _notificationService.sendImmediateNotification(
+          title: '📈 ${project.title} progresse',
+          body: percent == 100
+              ? 'Bravo, projet terminé à 100% !'
+              : 'Tu as atteint $percent% de progression. Continue comme ça.',
+          payload: project.id,
+        );
+        break;
+      }
+    }
   }
 }
 

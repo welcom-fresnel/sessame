@@ -2,15 +2,16 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 import '../models/project.dart';
 import '../models/task.dart';
-import 'api_key.dart';
 
 class AIService {
   static final AIService _instance = AIService._internal();
   factory AIService() => _instance;
   AIService._internal();
 
-  static const String _endpoint =
-      'https://openrouter.ai/api/v1/chat/completions';
+  /// URL de ton backend Node.js sur Railway
+  /// À remplacer par ton URL après le déploiement
+  static const String _backendUrl =
+      'https://sessame-production.up.railway.app'; // Replace with your Railway URL
   static const String _model = 'openai/gpt-oss-120b:free';
 
   // Méthode d'initialisation (pour compatibilité)
@@ -20,9 +21,7 @@ class AIService {
 
   Future<String> _callOpenRouter(String prompt) async {
     final headers = {
-      'Authorization': 'Bearer $apikey',
       'Content-Type': 'application/json',
-      'HTTP-Referer': 'https://github.com/appexdev4/sessame.git',
     };
 
     final body = jsonEncode({
@@ -36,7 +35,7 @@ class AIService {
 
     try {
       final response = await http.post(
-        Uri.parse(_endpoint),
+        Uri.parse('$_backendUrl/api/openrouter'),
         headers: headers,
         body: body,
       );
@@ -49,9 +48,9 @@ class AIService {
       } else {
         final errorData = jsonDecode(response.body);
         print(
-          'AI Service - Erreur: ${errorData['error']?['message'] ?? response.body}',
+          'AI Service - Erreur: ${errorData['error'] ?? response.body}',
         );
-        throw Exception('Erreur API (${response.statusCode})');
+        throw Exception('Erreur Backend (${response.statusCode})');
       }
     } catch (e) {
       print('AI Service - Exception: $e');

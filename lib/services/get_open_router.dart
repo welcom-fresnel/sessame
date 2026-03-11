@@ -1,96 +1,99 @@
+import 'dart:async';
 import 'dart:convert';
-import 'package:sessame/services/api_key.dart';
+import 'dart:io';
+
 import 'package:http/http.dart' as http;
-import '../models/project.dart';
+import 'package:sessame/services/api_key.dart';
+
 import '../models/message.dart';
+import '../models/project.dart';
 import '../models/task.dart';
+
+class AIUserVisibleException implements Exception {
+  final String message;
+  const AIUserVisibleException(this.message);
+
+  @override
+  String toString() => message;
+}
 
 Future<String> getOpenRouterResponse(
   String userInput, {
   List<Message>? conversationHistory,
   List<Project>? userProjects,
-  Map<String, List<Task>>? projectTasks, // Map projectId -> tasks
-  bool allowPaidFallback = true, // Par défaut, autoriser le fallback payant
+  Map<String, List<Task>>? projectTasks,
+  bool allowPaidFallback = true,
 }) async {
   const endpoint = 'https://openrouter.ai/api/v1/chat/completions';
+
+  if (apikey.isEmpty) {
+    throw const AIUserVisibleException(
+      'Cle API manquante. Ajoute API_KEY dans .env ou --dart-define puis relance.',
+    );
+  }
 
   final headers = {
     'Authorization': 'Bearer $apikey',
     'Content-Type': 'application/json',
-    'HTTP-Referer': 'https://github.com/your-repo', // Optionnel mais recommandé
-    'X-Title': 'Sessame - Gestion de Projets', // Pour les modèles gratuits
+    'HTTP-Referer': 'https://github.com/appexdev4/sessame.git',
+    'X-Title': 'Sessame - Gestion de Projets',
   };
 
-  // Construire le contexte avec les projets de l'utilisateur
   String contextPrompt = '';
   if (userProjects != null && userProjects.isNotEmpty) {
     contextPrompt = '''
 Tu es le meilleur ami de l'utilisateur.
-Un pote de 20–25 ans : cool, motivant, un peu taquin, jamais méchant.
+Un pote de 20-25 ans : cool, motivant, un peu taquin, jamais mechant.
 
-Ton rôle est d'aider l'utilisateur à avancer sur ses projets, 
-même quand il procrastine ou qu'il est en retard.
+Ton role est d'aider l'utilisateur a avancer sur ses projets,
+meme quand il procrastine ou qu'il est en retard.
 
 CONTEXTE - Projets de l'utilisateur :
 ''';
-    for (var project in userProjects) {
+
+    for (final project in userProjects) {
       final progressPercent = (project.progress * 100).toInt();
       final daysRemaining = project.daysRemaining;
-
-      // Récupérer les tâches pour ce projet
       final tasks = projectTasks?[project.id] ?? [];
       final completedTasks = tasks.where((t) => t.isCompleted).length;
       final totalTasks = tasks.length;
 
-      contextPrompt +=
-          '''
-📋 Projet : "${project.title}"
-📝 Description : ${project.description}
-📊 Progression : $progressPercent%
-⏰ Jours restants : $daysRemaining jour${daysRemaining.abs() > 1 ? 's' : ''}${project.isOverdue ? ' ⚠️ EN RETARD' : ''}
-✅ Tâches complétées : $completedTasks sur $totalTasks
-${project.status != 'en_cours' ? '📌 Statut : ${project.status}' : ''}
+      contextPrompt += '''
+Projet : "${project.title}"
+Description : ${project.description}
+Progression : $progressPercent%
+Jours restants : $daysRemaining jour${daysRemaining.abs() > 1 ? 's' : ''}${project.isOverdue ? ' EN RETARD' : ''}
+Taches completees : $completedTasks sur $totalTasks
+${project.status != 'en_cours' ? 'Statut : ${project.status}' : ''}
 
 ''';
     }
+
     contextPrompt += '''
 Quand l'utilisateur te parle de ses projets ou te demande de l'aide :
-
-Ton message doit :
-- Sonner comme un message d'ami (pas de ton pro)
-- Être motivant mais honnête
-- Taquiner légèrement si l'utilisateur traîne
-- Encourager si l'utilisateur avance
-- Être court et actionnable
-- Utiliser un français naturel, jeune et amical
-- Possiblement inclure une petite vanne ou provocation gentille 😏
-
-⚠️ Règles importantes :
-- Reste naturel et conversationnel
-- Référence les projets de l'utilisateur quand c'est pertinent
-- Sois son pote, pas son coach corporate
-
+- Sonne comme un message d'ami
+- Sois motivant mais honnete
+- Taquine legerement si l'utilisateur traine
+- Encourage si l'utilisateur avance
+- Sois court et actionnable
+- Utilise un francais naturel
 ''';
   } else {
     contextPrompt = '''
 Tu es le meilleur ami de l'utilisateur.
-Un pote de 20–25 ans : cool, motivant, un peu taquin, jamais méchant.
+Un pote de 20-25 ans : cool, motivant, un peu taquin, jamais mechant.
 
-L'utilisateur n'a pas encore de projets enregistrés. 
-Tu peux l'aider à en créer ou répondre à ses questions générales de manière décontractée et amicale.
-
+L'utilisateur n'a pas encore de projets enregistres.
+Aide-le a en creer ou reponds de maniere decontractee et amicale.
 ''';
   }
 
-  // Construire l'historique de conversation
-  final List<Map<String, String>> messages = [];
+  final List<Map<String, String>> messages = [
+    {'role': 'system', 'content': contextPrompt},
+  ];
 
-  // Ajouter le contexte système
-  messages.add({'role': 'system', 'content': contextPrompt});
-
-  // Ajouter l'historique de conversation (sans le dernier message utilisateur)
   if (conversationHistory != null && conversationHistory.isNotEmpty) {
-    for (var msg in conversationHistory) {
+    for (final msg in conversationHistory) {
       messages.add({
         'role': msg.isUser ? 'user' : 'assistant',
         'content': msg.content,
@@ -98,11 +101,9 @@ Tu peux l'aider à en créer ou répondre à ses questions générales de maniè
     }
   }
 
-  // Ajouter le message actuel de l'utilisateur
   messages.add({'role': 'user', 'content': userInput});
 
-  // Fonction pour faire une requête avec un modèle spécifique
-  Future<String> _makeRequest(String model) async {
+  Future<String> makeRequest(String model) async {
     final body = jsonEncode({
       'model': model,
       'messages': messages,
@@ -110,92 +111,116 @@ Tu peux l'aider à en créer ou répondre à ses questions générales de maniè
       'temperature': 0.7,
     });
 
-    final response = await http.post(
-      Uri.parse(endpoint),
-      headers: headers,
-      body: body,
-    );
-
-    print('Status Code: ${response.statusCode}');
+    http.Response response;
+    try {
+      response = await http
+          .post(
+            Uri.parse(endpoint),
+            headers: headers,
+            body: body,
+          )
+          .timeout(const Duration(seconds: 25));
+    } on TimeoutException {
+      throw const AIUserVisibleException(
+        'La requete a expire. Verifie ta connexion puis reessaie.',
+      );
+    } on SocketException {
+      throw const AIUserVisibleException(
+        'Impossible de contacter le serveur. Verifie internet et reessaie.',
+      );
+    }
 
     if (response.statusCode == 200) {
       final data = jsonDecode(response.body);
-      return data['choices'][0]['message']['content'] ?? 'Pas de réponse';
-    } else {
-      final errorData = jsonDecode(response.body);
-      final errorMessage = errorData['error']?['message'] ?? response.body;
-      throw Exception('Erreur API (${response.statusCode}): $errorMessage');
+      return data['choices'][0]['message']['content']?.toString() ?? 'Pas de reponse';
+    }
+
+    final errorMessage = _extractErrorMessage(response.body);
+    switch (response.statusCode) {
+      case 400:
+        throw AIUserVisibleException('Requete invalide. Detail: $errorMessage');
+      case 401:
+      case 403:
+        throw const AIUserVisibleException(
+          'Cle API invalide ou non autorisee. Verifie ta API_KEY.',
+        );
+      case 402:
+        throw const AIUserVisibleException(
+          'Credits OpenRouter insuffisants. Ajoute du credit ou change de modele.',
+        );
+      case 404:
+        throw AIUserVisibleException('Modele indisponible. Detail: $errorMessage');
+      case 408:
+        throw const AIUserVisibleException(
+          'Le serveur met trop de temps a repondre. Reessaie dans quelques instants.',
+        );
+      case 429:
+        throw const AIUserVisibleException(
+          'Trop de requetes pour le moment. Attends 30-60 secondes puis reessaie.',
+        );
+      default:
+        if (response.statusCode >= 500) {
+          throw const AIUserVisibleException(
+            'Le service IA est temporairement indisponible. Reessaie dans quelques minutes.',
+          );
+        }
+        throw AIUserVisibleException(
+          'Erreur API (${response.statusCode}): $errorMessage',
+        );
     }
   }
 
-  // Liste des modèles gratuits à essayer (par ordre de préférence)
-  // Note: gpt-4o-mini n'est PAS gratuit sur OpenRouter, il est payant
-  final List<String> freeModels = [
-    'openai/gpt-oss-120b:free', // Modèle gratuit OpenAI (120B paramètres)
-    'meta-llama/llama-3.2-3b-instruct:free', // Llama 3.2 3B (si disponible)
-    'google/gemini-flash-1.5:free', // Gemini Flash (si disponible)
-    'mistralai/mistral-7b-instruct:free', // Mistral 7B (si disponible)
-    'huggingface/zephyr-7b-beta:free', // Zephyr 7B (si disponible)
+  final freeModels = <String>[
+    'openai/gpt-oss-120b:free',
+    'meta-llama/llama-3.2-3b-instruct:free',
+    'google/gemini-flash-1.5:free',
+    'mistralai/mistral-7b-instruct:free',
+    'huggingface/zephyr-7b-beta:free',
   ];
 
-  // Essayer chaque modèle gratuit jusqu'à ce qu'un fonctionne
   Exception? lastError;
 
-  for (int i = 0; i < freeModels.length; i++) {
+  for (var i = 0; i < freeModels.length; i++) {
     try {
-      print('Tentative avec le modèle: ${freeModels[i]}');
-      return await _makeRequest(freeModels[i]);
+      return await makeRequest(freeModels[i]);
     } on Exception catch (e) {
-      final errorStr = e.toString();
       lastError = e;
-
-      // Si erreur 429 (rate limit) ou 404 (policy), essayer le modèle suivant
-      if (errorStr.contains('429') || errorStr.contains('404')) {
-        print('Modèle ${freeModels[i]} indisponible, essai du suivant...');
-
-        // Attendre un peu avant de réessayer (sauf pour le dernier)
-        if (i < freeModels.length - 1) {
-          await Future.delayed(const Duration(milliseconds: 500));
-        }
-        continue; // Essayer le modèle suivant
-      } else {
-        // Pour les autres erreurs, relancer directement
-        rethrow;
+      final s = e.toString().toLowerCase();
+      final retriable = s.contains('429') || s.contains('indisponible') || s.contains('404');
+      if (retriable && i < freeModels.length - 1) {
+        await Future.delayed(const Duration(milliseconds: 500));
+        continue;
       }
+      rethrow;
     }
   }
 
-  // Si tous les modèles gratuits ont échoué
   if (allowPaidFallback) {
-    // Essayer gpt-4o-mini (payant mais peu cher)
-    print(
-      'Tous les modèles gratuits ont échoué, essai avec gpt-4o-mini (payant ~\$0.15/1M tokens)...',
-    );
     try {
-      return await _makeRequest('openai/gpt-4o-mini');
-    } catch (e2) {
-      // Message d'erreur final
-      if (lastError != null && lastError.toString().contains('429')) {
-        throw Exception(
-          'Tous les modèles gratuits ont atteint leur limite de requêtes. '
-          'Veuillez patienter quelques instants avant de réessayer. '
-          'Les modèles gratuits ont des limites de taux pour éviter les abus.',
-        );
+      return await makeRequest('openai/gpt-4o-mini');
+    } catch (e) {
+      if (lastError is AIUserVisibleException) {
+        throw lastError;
       }
-      throw Exception('Erreur de connexion: ${lastError ?? e2}');
+      throw AIUserVisibleException('Erreur de connexion: ${lastError ?? e}');
     }
-  } else {
-    // Si le fallback payant est désactivé, lancer une erreur
-    if (lastError != null && lastError.toString().contains('429')) {
-      throw Exception(
-        'Tous les modèles gratuits ont atteint leur limite de requêtes. '
-        'Veuillez patienter quelques instants avant de réessayer. '
-        'Les modèles gratuits ont des limites de taux pour éviter les abus.',
-      );
-    }
-    throw Exception(
-      'Tous les modèles gratuits ont échoué. '
-      'Erreur: ${lastError?.toString() ?? "Inconnue"}',
-    );
+  }
+
+  if (lastError is AIUserVisibleException) {
+    throw lastError;
+  }
+
+  throw AIUserVisibleException(
+    'Tous les modeles gratuits ont echoue. Erreur: ${lastError ?? 'Inconnue'}',
+  );
+}
+
+String _extractErrorMessage(String responseBody) {
+  try {
+    final errorData = jsonDecode(responseBody);
+    return errorData['error']?['message']?.toString() ?? responseBody;
+  } catch (_) {
+    return responseBody;
   }
 }
+

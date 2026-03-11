@@ -140,9 +140,8 @@ class _ConversationScreenState extends State<ConversationScreen> {
       setState(() => _isLoading = false);
       _scrollToBottom();
     } catch (e) {
-      // Ajouter un message d'erreur
       final errorMsg = Message(
-        content: '❌ Erreur: verifie ta connexion internet et réessaye',
+        content: '❌ ${_getFriendlyError(e)}',
         isUser: false,
         timestamp: DateTime.now(),
       );
@@ -150,6 +149,35 @@ class _ConversationScreenState extends State<ConversationScreen> {
       setState(() => _isLoading = false);
       _scrollToBottom();
     }
+  }
+
+
+  String _getFriendlyError(Object error) {
+    if (error is AIUserVisibleException) return error.message;
+
+    final text = error.toString();
+    final lowered = text.toLowerCase();
+
+    if (lowered.contains('api_key') || lowered.contains('api key')) {
+      return 'Cle API manquante ou invalide. Verifie API_KEY puis relance.';
+    }
+    if (lowered.contains('timeout') || lowered.contains('expire')) {
+      return 'La requete a expire. Verifie ta connexion puis reessaie.';
+    }
+    if (lowered.contains('socket') || lowered.contains('internet')) {
+      return 'Impossible de joindre le serveur. Verifie internet et reessaie.';
+    }
+    if (lowered.contains('429') || lowered.contains('trop de requetes')) {
+      return 'Limite de requetes atteinte. Attends un peu puis reessaie.';
+    }
+    if (lowered.contains('402') || lowered.contains('credit')) {
+      return 'Credits IA insuffisants. Ajoute du credit OpenRouter.';
+    }
+    if (lowered.contains('401') || lowered.contains('403')) {
+      return 'Cle API non autorisee. Verifie ta configuration OpenRouter.';
+    }
+
+    return 'Erreur IA: ${text.replaceFirst('Exception: ', '')}';
   }
 
   @override
@@ -700,3 +728,4 @@ class _ConversationScreenState extends State<ConversationScreen> {
     );
   }
 }
+

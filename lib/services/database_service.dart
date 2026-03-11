@@ -24,9 +24,10 @@ class DatabaseService {
 
     return await openDatabase(
       path,
-      version: 3,
+      version: 4,
       onCreate: _onCreate,
       onUpgrade: _onUpgrade,
+      onOpen: _onOpen,
     );
   }
 
@@ -43,7 +44,9 @@ class DatabaseService {
         status TEXT NOT NULL DEFAULT 'en_cours',
         notificationFrequency INTEGER NOT NULL DEFAULT 3,
         lastNotificationDate TEXT,
-        lastUpdateDate TEXT
+        lastUpdateDate TEXT,
+        category TEXT,
+        imagePath TEXT
       )
     ''');
 
@@ -110,15 +113,35 @@ class DatabaseService {
     }
     
     if (oldVersion < 3) {
-      // Add category and imagePath columns to projects table
-      try {
+      await _ensureProjectColumns(db);
+    }
+
+    if (oldVersion < 4) {
+      // Repair DBs created in v3 with an incomplete projects schema.
+      await _ensureProjectColumns(db);
+    }
+  }
+
+  Future<void> _onOpen(Database db) async {
+    // Defensive self-healing in case an inconsistent DB reaches runtime.
+    await _ensureProjectColumns(db);
+  }
+
+  Future<void> _ensureProjectColumns(Database db) async {
+    try {
+      final columns = await db.rawQuery('PRAGMA table_info(projects)');
+      final columnNames = columns
+          .map((column) => (column['name'] ?? '').toString())
+          .toSet();
+
+      if (!columnNames.contains('category')) {
         await db.execute('ALTER TABLE projects ADD COLUMN category TEXT');
-        await db.execute('ALTER TABLE projects ADD COLUMN imagePath TEXT');
-        print('✅ Colonnes category et imagePath ajoutées à la table projects');
-      } catch (e) {
-        // Les colonnes existent peut-être déjà
-        print('⚠️ Erreur lors de l\'ajout des colonnes: $e');
       }
+      if (!columnNames.contains('imagePath')) {
+        await db.execute('ALTER TABLE projects ADD COLUMN imagePath TEXT');
+      }
+    } catch (e) {
+      print('Erreur migration colonne projects: $e');
     }
   }
 
@@ -367,3 +390,6 @@ class DatabaseService {
     );
   }
 }
+
+
+

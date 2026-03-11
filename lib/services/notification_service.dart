@@ -57,6 +57,8 @@ class NotificationService {
       _initialized = true;
     } catch (e) {
       print('❌ Erreur lors de l\'initialisation des notifications: $e');
+      // Set initialized to true anyway to avoid repeated attempts
+      _initialized = true;
       rethrow;
     }
   }
@@ -213,6 +215,9 @@ class NotificationService {
         print('⚠️ Date de notification dans le passé, annulation');
         return;
       }
+
+      // Remplace l'ancienne programmation pour garder un seul rappel par projet.
+      await _notifications.cancel(id);
 
       await _notifications.zonedSchedule(
         id,
