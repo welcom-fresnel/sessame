@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
+import 'package:shared_preferences/shared_preferences.dart';
 import '../models/project.dart';
 import '../models/task.dart';
 
@@ -11,7 +12,7 @@ class AIService {
   /// URL de ton backend Node.js sur Railway
   /// À remplacer par ton URL après le déploiement
   static const String _backendUrl =
-      'hopeful-courtesy-production.up.railway.app'; // Replace with your Railway URL
+      'https://hopeful-courtesy-production.up.railway.app'; // Replace with your Railway URL
   static const String _model = 'openai/step-3.5-flash:free';
 
   // Méthode d'initialisation (pour compatibilité)
@@ -20,44 +21,81 @@ class AIService {
   }
 
   Future<String> _callOpenRouter(String prompt) async {
+    return _callOpenRouterWithMessages(
+      [
+        {"role": "user", "content": prompt},
+      ],
+    );
+  }
+
+  Future<String> _callOpenRouterWithMessages(
+    List<Map<String, String>> messages, {
+    String? model,
+    int maxTokens = 800,
+    double temperature = 0.7,
+  }) async {
     final headers = {
-      'Content-Type': 'application/json',
+      "Content-Type": "application/json",
+    };
+
+    final prefs = await SharedPreferences.getInstance();
+    final clientProfile = {
+      "name": prefs.getString("profile_name") ?? "",
+      "age": prefs.getString("profile_age") ?? "",
+      "gender": prefs.getString("profile_gender") ?? "",
+      "address": prefs.getString("profile_address") ?? "",
     };
 
     final body = jsonEncode({
-      'model': _model,
-      'messages': [
-        {'role': 'user', 'content': prompt},
-      ],
-      'max_tokens': 800,
-      'temperature': 0.7,
+      "model": model ?? _model,
+      "client_profile": clientProfile,
+      "messages": messages,
+      "max_tokens": maxTokens,
+      "temperature": temperature,
     });
 
     try {
-      final response = await http.post(
-        Uri.parse('$_backendUrl/api/openrouter'),
-        headers: headers,
-        body: body,
-      );
+      final response = await http
+          .post(
+            Uri.parse("$_backendUrl/api/openrouter"),
+            headers: headers,
+            body: body,
+          )
+          .timeout(const Duration(seconds: 25));
 
-      print('AI Service - Status Code: ${response.statusCode}');
+      print("AI Service - Status Code: ${response.statusCode}");
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
-        return data['choices'][0]['message']['content'] ?? 'Pas de réponse';
+        return data["choices"][0]["message"]["content"] ?? "Pas de réponse";
       } else {
-        final errorData = jsonDecode(response.body);
-        print(
-          'AI Service - Erreur: ${errorData['error'] ?? response.body}',
-        );
-        throw Exception('Erreur Backend (${response.statusCode})');
+        String errorMessage = response.body;
+        try {
+          final errorData = jsonDecode(response.body);
+          errorMessage = errorData["error"]?.toString() ?? response.body;
+        } catch (_) {}
+        print("AI Service - Erreur: $errorMessage");
+        throw Exception("Erreur Backend (${response.statusCode}): $errorMessage");
       }
     } catch (e) {
-      print('AI Service - Exception: $e');
+      print("AI Service - Exception: $e");
       rethrow;
     }
   }
 
+  Future<String> callWithMessages(
+    List<Map<String, String>> messages, {
+    String? model,
+    int maxTokens = 800,
+    double temperature = 0.7,
+  }) {
+    return _callOpenRouterWithMessages(
+      messages,
+      model: model,
+      maxTokens: maxTokens,
+      temperature: temperature,
+    );
+  }
   /// Analyse le projet et donne un conseil personnalisé
   Future<String> getProjectAdvice({
     required Project project,
@@ -160,3 +198,5 @@ Réponds UNIQUEMENT avec la phrase, sans guillemets.
     }
   }
 }
+
+

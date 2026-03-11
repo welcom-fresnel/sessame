@@ -1,9 +1,7 @@
 import 'dart:async';
-import 'dart:convert';
 import 'dart:io';
 
-import 'package:http/http.dart' as http;
-import 'package:sessame/services/api_key.dart';
+import 'package:sessame/services/ai_service.dart';
 
 import '../models/message.dart';
 import '../models/project.dart';
@@ -24,20 +22,7 @@ Future<String> getOpenRouterResponse(
   Map<String, List<Task>>? projectTasks,
   bool allowPaidFallback = true,
 }) async {
-  const endpoint = 'https://openrouter.ai/api/v1/chat/completions';
-
-  if (apikey.isEmpty) {
-    throw const AIUserVisibleException(
-      'Cle API manquante. Ajoute API_KEY dans .env ou --dart-define puis relance.',
-    );
-  }
-
-  final headers = {
-    'Authorization': 'Bearer $apikey',
-    'Content-Type': 'application/json',
-    'HTTP-Referer': 'https://github.com/appexdev4/sessame.git',
-    'X-Title': 'Sessame - Gestion de Projets',
-  };
+  final aiService = AIService();
 
   String contextPrompt = '';
   if (userProjects != null && userProjects.isNotEmpty) {
@@ -104,22 +89,13 @@ Aide-le a en creer ou reponds de maniere decontractee et amicale.
   messages.add({'role': 'user', 'content': userInput});
 
   Future<String> makeRequest(String model) async {
-    final body = jsonEncode({
-      'model': model,
-      'messages': messages,
-      'max_tokens': 800,
-      'temperature': 0.7,
-    });
-
-    http.Response response;
     try {
-      response = await http
-          .post(
-            Uri.parse(endpoint),
-            headers: headers,
-            body: body,
-          )
-          .timeout(const Duration(seconds: 25));
+      return await aiService.callWithMessages(
+        messages,
+        model: model,
+        maxTokens: 800,
+        temperature: 0.7,
+      );
     } on TimeoutException {
       throw const AIUserVisibleException(
         'La requete a expire. Verifie ta connexion puis reessaie.',
@@ -128,45 +104,6 @@ Aide-le a en creer ou reponds de maniere decontractee et amicale.
       throw const AIUserVisibleException(
         'Impossible de contacter le serveur. Verifie internet et reessaie.',
       );
-    }
-
-    if (response.statusCode == 200) {
-      final data = jsonDecode(response.body);
-      return data['choices'][0]['message']['content']?.toString() ?? 'Pas de reponse';
-    }
-
-    final errorMessage = _extractErrorMessage(response.body);
-    switch (response.statusCode) {
-      case 400:
-        throw AIUserVisibleException('Requete invalide. Detail: $errorMessage');
-      case 401:
-      case 403:
-        throw const AIUserVisibleException(
-          'Cle API invalide ou non autorisee. Verifie ta API_KEY.',
-        );
-      case 402:
-        throw const AIUserVisibleException(
-          'Credits OpenRouter insuffisants. Ajoute du credit ou change de modele.',
-        );
-      case 404:
-        throw AIUserVisibleException('Modele indisponible. Detail: $errorMessage');
-      case 408:
-        throw const AIUserVisibleException(
-          'Le serveur met trop de temps a repondre. Reessaie dans quelques instants.',
-        );
-      case 429:
-        throw const AIUserVisibleException(
-          'Trop de requetes pour le moment. Attends 30-60 secondes puis reessaie.',
-        );
-      default:
-        if (response.statusCode >= 500) {
-          throw const AIUserVisibleException(
-            'Le service IA est temporairement indisponible. Reessaie dans quelques minutes.',
-          );
-        }
-        throw AIUserVisibleException(
-          'Erreur API (${response.statusCode}): $errorMessage',
-        );
     }
   }
 
@@ -215,12 +152,4 @@ Aide-le a en creer ou reponds de maniere decontractee et amicale.
   );
 }
 
-String _extractErrorMessage(String responseBody) {
-  try {
-    final errorData = jsonDecode(responseBody);
-    return errorData['error']?['message']?.toString() ?? responseBody;
-  } catch (_) {
-    return responseBody;
-  }
-}
 

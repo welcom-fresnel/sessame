@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
-import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'services/database_factory_initializer.dart';
 import 'providers/project_provider.dart';
 import 'providers/conversation_provider.dart';
@@ -11,13 +10,6 @@ import 'screens/splash_screen.dart'; // Importation du SplashScreen
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await initializeDatabaseFactory();
-  try {
-    // Charger depuis les assets (.env est listé dans pubspec.yaml)
-    await dotenv.load(fileName: '.env');
-  } catch (e) {
-    print('⚠️ Could not load .env file: $e');
-    // Continue anyway, API_KEY can come from --dart-define
-  }
   runApp(const MyApp());
 }
 
@@ -88,3 +80,4 @@ class MyApp extends StatelessWidget {
     );
   }
 }
+

@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "401712409524",
+    "project_id": "sessame-3fc2a",
+    "storage_bucket": "sessame-3fc2a.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:401712409524:android:7ca9a9361a0131fe92a0e1",
+        "android_client_info": {
+          "package_name": "com.example.sessame"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyA6x9eQxSffl_9maV3PxrSaOaGgApbBeE0"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
