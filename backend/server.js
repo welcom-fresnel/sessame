@@ -43,7 +43,7 @@ app.post('/api/openrouter', async (req, res) => {
       {
         headers: {
           'Authorization': `Bearer ${process.env.OPENROUTER_API_KEY}`,
-          'HTTP-Referer': 'https://github.com/appexdev4/sessame.git',
+          'HTTP-Referer': 'https://github.com/welcom-fresnel/sessame.git',
           'X-Title': 'Sessame',
           'Content-Type': 'application/json'
         }

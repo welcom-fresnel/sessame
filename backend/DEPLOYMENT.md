@@ -26,10 +26,9 @@ git push -u origin main
 1. Va sur [railway.app/dashboard](https://railway.app/dashboard)
 2. Clique "New Project" → "Deploy from GitHub"
 3. Sélectionne le repo `sessame`
-4. Railway détectera automatiquement le `package.json` dans `/backend`
-5. **Important**: Configure le **root directory**:
-   - Clique sur la variable `SERVICE_NAME` ou les paramètres du service
-   - Set "Root Directory" à `backend`
+4. Railway va scanner et créer un service automatiquement
+
+**NOTE:** Le fichier `railway.json` à la racine configure automatiquement Railway pour utiliser le dossier `backend`. Tu n'as rien à faire !
 
 ### 4️⃣ Ajoute les variables d'environnement
 1. Dans le dashboard Railroad, va à ton projet
