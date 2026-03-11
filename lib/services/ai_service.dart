@@ -11,8 +11,8 @@ class AIService {
   /// URL de ton backend Node.js sur Railway
   /// À remplacer par ton URL après le déploiement
   static const String _backendUrl =
-      'https://sessame-production.up.railway.app'; // Replace with your Railway URL
-  static const String _model = 'openai/gpt-oss-120b:free';
+      'hopeful-courtesy-production.up.railway.app'; // Replace with your Railway URL
+  static const String _model = 'openai/step-3.5-flash:free';
 
   // Méthode d'initialisation (pour compatibilité)
   void initialize() {
