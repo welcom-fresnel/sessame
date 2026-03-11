@@ -20,7 +20,7 @@ app.get('/health', (req, res) => {
 // Route principale pour appeller OpenRouter
 app.post('/api/openrouter', async (req, res) => {
   try {
-    const { messages, model = 'openai/gpt-oss-120b:free', max_tokens = 800, temperature = 0.7 } = req.body;
+    const { messages, model = 'openai/stepfun/step-3.5-flash:free', max_tokens = 10000, temperature = 0.7 } = req.body;
 
     // Valide l'input
     if (!messages || !Array.isArray(messages)) {
