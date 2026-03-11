@@ -7,6 +7,7 @@ dotenv.config();
 
 const app = express();
 const PORT = process.env.PORT || 3000;
+const HOST = '0.0.0.0';
 
 // Middleware
 app.use(express.json());
@@ -71,8 +72,8 @@ app.use((req, res) => {
 });
 
 // Démarre le serveur
-app.listen(PORT, () => {
+app.listen(PORT, HOST, () => {
   console.log(`🚀 Server running on port ${PORT}`);
-  console.log(`🌐 API endpoint: http://localhost:${PORT}/api/openrouter`);
-  console.log(`📊 Health check: http://localhost:${PORT}/health`);
+  console.log(`🌐 API endpoint: http://${HOST}:${PORT}/api/openrouter`);
+  console.log(`📊 Health check: http://${HOST}:${PORT}/health`);
 });
