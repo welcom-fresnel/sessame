@@ -28,7 +28,7 @@ git push -u origin main
 3. Sélectionne le repo `sessame`
 4. Railway va scanner et créer un service automatiquement
 
-**NOTE:** Le fichier `railway.json` à la racine configure automatiquement Railway pour utiliser le dossier `backend`. Tu n'as rien à faire !
+**NOTE:** Le fichier `Procfile` à la racine indique à Railway comment lancer le backend dans `backend`.
 
 ### 4️⃣ Ajoute les variables d'environnement
 1. Dans le dashboard Railroad, va à ton projet
@@ -77,7 +77,7 @@ Railroad redéploiera automatiquement en quelques secondes.
 ## ❓ Dépannage
 
 **Le déploiement échoue?**
-- Vérifie que `Procfile` existe dans `backend/`
+- Vérifie que `Procfile` existe à la racine
 - Vérifie que `package.json` existe dans `backend/`
 - Regarde les logs dans le dashboard
 
@@ -95,3 +95,4 @@ Dans le Dashboard Railroad:
 - Vois les logs en temps réel
 - Vois la CPU et la RAM utilisées
 - Vois l'historique des déploiements
+
