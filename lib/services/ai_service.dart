@@ -13,7 +13,9 @@ class AIService {
   /// À remplacer par ton URL après le déploiement
   static const String _backendUrl =
       'https://hopeful-courtesy-production.up.railway.app'; // Replace with your Railway URL
-  static const String _model = 'openai/step-3.5-flash:free';
+  static const String _model = 'openrouter/free';
+
+
 
   // Méthode d'initialisation (pour compatibilité)
   void initialize() {

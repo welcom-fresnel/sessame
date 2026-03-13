@@ -88,68 +88,21 @@ Aide-le a en creer ou reponds de maniere decontractee et amicale.
 
   messages.add({'role': 'user', 'content': userInput});
 
-  Future<String> makeRequest(String model) async {
-    try {
-      return await aiService.callWithMessages(
-        messages,
-        model: model,
-        maxTokens: 800,
-        temperature: 0.7,
-      );
-    } on TimeoutException {
-      throw const AIUserVisibleException(
-        'La requete a expire. Verifie ta connexion puis reessaie.',
-      );
-    } on SocketException {
-      throw const AIUserVisibleException(
-        'Impossible de contacter le serveur. Verifie internet et reessaie.',
-      );
-    }
+  try {
+    return await aiService.callWithMessages(
+      messages,
+      maxTokens: 800,
+      temperature: 0.7,
+    );
+  } on TimeoutException {
+    throw const AIUserVisibleException(
+      'La requete a expire. Verifie ta connexion puis reessaie.',
+    );
+  } on SocketException {
+    throw const AIUserVisibleException(
+      'Impossible de contacter le serveur. Verifie internet et reessaie.',
+    );
   }
-
-  final freeModels = <String>[
-    'openai/gpt-oss-120b:free',
-    'meta-llama/llama-3.2-3b-instruct:free',
-    'google/gemini-flash-1.5:free',
-    'mistralai/mistral-7b-instruct:free',
-    'huggingface/zephyr-7b-beta:free',
-  ];
-
-  Exception? lastError;
-
-  for (var i = 0; i < freeModels.length; i++) {
-    try {
-      return await makeRequest(freeModels[i]);
-    } on Exception catch (e) {
-      lastError = e;
-      final s = e.toString().toLowerCase();
-      final retriable = s.contains('429') || s.contains('indisponible') || s.contains('404');
-      if (retriable && i < freeModels.length - 1) {
-        await Future.delayed(const Duration(milliseconds: 500));
-        continue;
-      }
-      rethrow;
-    }
-  }
-
-  if (allowPaidFallback) {
-    try {
-      return await makeRequest('openai/gpt-4o-mini');
-    } catch (e) {
-      if (lastError is AIUserVisibleException) {
-        throw lastError;
-      }
-      throw AIUserVisibleException('Erreur de connexion: ${lastError ?? e}');
-    }
-  }
-
-  if (lastError is AIUserVisibleException) {
-    throw lastError;
-  }
-
-  throw AIUserVisibleException(
-    'Tous les modeles gratuits ont echoue. Erreur: ${lastError ?? 'Inconnue'}',
-  );
 }
 
 
