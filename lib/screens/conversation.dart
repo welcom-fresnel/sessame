@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import '../services/get_open_router.dart';
@@ -159,7 +160,7 @@ class _ConversationScreenState extends State<ConversationScreen> {
     final lowered = text.toLowerCase();
 
     if (lowered.contains('api_key') || lowered.contains('api key')) {
-      return 'Cle API manquante ou invalide. Verifie API_KEY puis relance.';
+      return 'un lege problème avec la configuration, je te reviens dès que c\'est réglé.';
     }
     if (lowered.contains('timeout') || lowered.contains('expire')) {
       return 'La requete a expire. Verifie ta connexion puis reessaie.';
@@ -171,13 +172,13 @@ class _ConversationScreenState extends State<ConversationScreen> {
       return 'Limite de requetes atteinte. Attends un peu puis reessaie.';
     }
     if (lowered.contains('402') || lowered.contains('credit')) {
-      return 'Credits IA insuffisants. Ajoute du credit OpenRouter.';
+      return 'Credits IA insuffisants.';
     }
     if (lowered.contains('401') || lowered.contains('403')) {
-      return 'Cle API non autorisee. Verifie ta configuration OpenRouter.';
+      return 'je n\'ai pas la permission de faire ca.';
     }
 
-    return 'Erreur IA: ${text.replaceFirst('Exception: ', '')}';
+    return 'Erreur IA: t\'as plus de credits ou y\'a un souci de connexion. Reessaie plus tard.';
   }
 
   @override
@@ -639,6 +640,12 @@ class _ConversationScreenState extends State<ConversationScreen> {
 
   Widget _buildMessageBubble(Message message) {
     final timeStr = DateFormat('HH:mm').format(message.timestamp);
+    final bubbleRadius = BorderRadius.only(
+      topLeft: const Radius.circular(20),
+      topRight: const Radius.circular(20),
+      bottomLeft: Radius.circular(message.isUser ? 20 : 5),
+      bottomRight: Radius.circular(message.isUser ? 5 : 20),
+    );
 
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),
@@ -663,49 +670,56 @@ class _ConversationScreenState extends State<ConversationScreen> {
               ),
             ),
           Flexible(
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-              decoration: BoxDecoration(
-                gradient: message.isUser
-                    ? const LinearGradient(
-                        colors: [Colors.deepPurpleAccent, Colors.purple],
-                      )
-                    : null,
-                color: message.isUser
-                    ? null
-                    : Colors.white.withValues(alpha: 0.05),
-                borderRadius: BorderRadius.only(
-                  topLeft: const Radius.circular(20),
-                  topRight: const Radius.circular(20),
-                  bottomLeft: Radius.circular(message.isUser ? 20 : 5),
-                  bottomRight: Radius.circular(message.isUser ? 5 : 20),
-                ),
-                border: Border.all(
+            child: InkWell(
+              onLongPress: () async {
+                await Clipboard.setData(
+                  ClipboardData(text: message.content),
+                );
+                if (!mounted) return;
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Message copiÃ©')),
+                );
+              },
+              borderRadius: bubbleRadius,
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                decoration: BoxDecoration(
+                  gradient: message.isUser
+                      ? const LinearGradient(
+                          colors: [Colors.deepPurpleAccent, Colors.purple],
+                        )
+                      : null,
                   color: message.isUser
-                      ? Colors.transparent
-                      : Colors.white.withValues(alpha: 0.1),
+                      ? null
+                      : Colors.white.withValues(alpha: 0.05),
+                  borderRadius: bubbleRadius,
+                  border: Border.all(
+                    color: message.isUser
+                        ? Colors.transparent
+                        : Colors.white.withValues(alpha: 0.1),
+                  ),
                 ),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    message.content,
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 15,
-                      height: 1.4,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      message.content,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 15,
+                        height: 1.4,
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    timeStr,
-                    style: TextStyle(
-                      color: Colors.white.withValues(alpha: 0.5),
-                      fontSize: 11,
+                    const SizedBox(height: 4),
+                    Text(
+                      timeStr,
+                      style: TextStyle(
+                        color: Colors.white.withValues(alpha: 0.5),
+                        fontSize: 11,
+                      ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
             ),
           ),

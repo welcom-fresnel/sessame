@@ -65,7 +65,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   Text(
-                                    'Bonjour 👋',
+                                    'Bonjour',
                                     style: TextStyle(
                                       color:
                                           Theme.of(context).brightness ==
