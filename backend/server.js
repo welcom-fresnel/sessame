@@ -13,12 +13,21 @@ const HOST = '0.0.0.0';
 
 let firestore = null;
 let firestoreInitErrorLogged = false;
+let firestoreMissingLogged = false;
+let firestoreReadyLogged = false;
+let firestoreUnavailableLogged = false;
 
 function getFirestoreDb() {
   if (firestore) return firestore;
 
   const serviceAccountJson = process.env.FIREBASE_SERVICE_ACCOUNT_JSON;
-  if (!serviceAccountJson) return null;
+  if (!serviceAccountJson) {
+    if (!firestoreMissingLogged) {
+      console.warn('Firebase disabled: FIREBASE_SERVICE_ACCOUNT_JSON not set');
+      firestoreMissingLogged = true;
+    }
+    return null;
+  }
 
   let serviceAccount;
   try {
@@ -34,6 +43,10 @@ function getFirestoreDb() {
   try {
     const app = initializeApp({ credential: cert(serviceAccount) });
     firestore = getFirestore(app);
+    if (!firestoreReadyLogged) {
+      console.log('Firebase Firestore initialized');
+      firestoreReadyLogged = true;
+    }
     return firestore;
   } catch (err) {
     if (!firestoreInitErrorLogged) {
@@ -46,7 +59,13 @@ function getFirestoreDb() {
 
 async function logAiRequest(payload) {
   const db = getFirestoreDb();
-  if (!db) return;
+  if (!db) {
+    if (!firestoreUnavailableLogged) {
+      console.warn('Firebase logging skipped: Firestore not initialized');
+      firestoreUnavailableLogged = true;
+    }
+    return;
+  }
 
   try {
     await db.collection('ai_requests').add({
