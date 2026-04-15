@@ -20,8 +20,7 @@ let firestoreUnavailableLogged = false;
 function getFirestoreDb() {
   if (firestore) return firestore;
 
-  const serviceAccountJson = process.env.FIREBASE_SERVICE_ACCOUNT_JSON;
-  if (!serviceAccountJson) {
+  const serviceAccountJson = process.env.FIREBASE_SERVICE_ACCOUNT_JSON;  if (!serviceAccountJson) {
     if (!firestoreMissingLogged) {
       console.warn('Firebase disabled: FIREBASE_SERVICE_ACCOUNT_JSON not set');
       firestoreMissingLogged = true;
