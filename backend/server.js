@@ -10,6 +10,10 @@ dotenv.config();
 const app = express();
 const PORT = process.env.PORT || 3000;
 const HOST = '0.0.0.0';
+const AI_PROVIDER = (process.env.AI_PROVIDER || 'openrouter').toLowerCase();
+const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY;
+const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
+const GEMINI_MODEL = process.env.GEMINI_MODEL || 'models/gemini-1.5-flash';
 
 let firestore = null;
 let firestoreInitErrorLogged = false;
@@ -116,10 +120,14 @@ app.post('/api/openrouter', async (req, res) => {
       return res.status(400).json({ error: 'messages must be an array' });
     }
 
-    if (!process.env.OPENROUTER_API_KEY) {
+    const provider = AI_PROVIDER === 'gemini' || AI_PROVIDER === 'google_gemini'
+      ? 'gemini'
+      : 'openrouter';
+
+    if (provider === 'openrouter' && !OPENROUTER_API_KEY) {
       await logAiRequest({
         status: 'error',
-        errorMessage: 'API_KEY not configured on server',
+        errorMessage: 'OPENROUTER_API_KEY not configured on server',
         model,
         max_tokens,
         temperature,
@@ -130,29 +138,98 @@ app.post('/api/openrouter', async (req, res) => {
         userAgent,
         latencyMs: Date.now() - startedAt,
       });
-      return res.status(500).json({ error: 'API_KEY not configured on server' });
+      return res.status(500).json({ error: 'OPENROUTER_API_KEY not configured on server' });
     }
 
-    // Appelle OpenRouter
-    const response = await axios.post(
-      'https://openrouter.ai/api/v1/chat/completions',
-      {
+    if (provider === 'gemini' && !GEMINI_API_KEY) {
+      await logAiRequest({
+        status: 'error',
+        errorMessage: 'GEMINI_API_KEY not configured on server',
         model,
-        messages,
         max_tokens,
-        temperature
-      },
-      {
-        headers: {
-          'Authorization': `Bearer ${process.env.OPENROUTER_API_KEY}`,
-          'HTTP-Referer': 'https://github.com/welcom-fresnel/sessame.git',
-          'X-Title': 'Sessame',
-          'Content-Type': 'application/json'
-        }
-      }
-    );
+        temperature,
+        messages,
+        clientProfile,
+        clientId,
+        ip,
+        userAgent,
+        latencyMs: Date.now() - startedAt,
+      });
+      return res.status(500).json({ error: 'GEMINI_API_KEY not configured on server' });
+    }
 
-    // Retourne la réponse
+    const response = provider === 'gemini'
+      ? await axios.post(
+          `https://gemini.googleapis.com/v1/${GEMINI_MODEL}:generateMessage?key=${GEMINI_API_KEY}`,
+          {
+            temperature,
+            maxOutputTokens: Math.min(max_tokens, 2048),
+            messages: messages.map((message) => ({
+              author: message.role === 'assistant'
+                ? 'assistant'
+                : message.role === 'system'
+                  ? 'system'
+                  : 'user',
+              content: [
+                {
+                  type: 'text',
+                  text: message.content,
+                },
+              ],
+            })),
+          },
+          {
+            headers: {
+              'Content-Type': 'application/json',
+            },
+          },
+        )
+      : await axios.post(
+          'https://openrouter.ai/api/v1/chat/completions',
+          {
+            model,
+            messages,
+            max_tokens,
+            temperature,
+          },
+          {
+            headers: {
+              'Authorization': `Bearer ${OPENROUTER_API_KEY}`,
+              'HTTP-Referer': 'https://github.com/welcom-fresnel/sessame.git',
+              'X-Title': 'Sessame',
+              'Content-Type': 'application/json',
+            },
+          },
+        );
+
+    const responseData = response.data;
+    let formattedResponse = responseData;
+
+    if (provider === 'gemini') {
+      const candidate = Array.isArray(responseData?.candidates)
+        ? responseData.candidates[0]
+        : null;
+      let contentText = '';
+
+      if (candidate != null && Array.isArray(candidate.content)) {
+        contentText = candidate.content
+            .filter((item) => item.type === 'text')
+            .map((item) => item.text || '')
+            .join('\n');
+      }
+
+      formattedResponse = {
+        choices: [
+          {
+            message: {
+              content: contentText.length > 0 ? contentText : 'Réponse vide du modèle Gemini',
+            },
+          },
+        ],
+        raw: responseData,
+      };
+    }
+
     await logAiRequest({
       status: 'ok',
       model,
@@ -164,11 +241,12 @@ app.post('/api/openrouter', async (req, res) => {
       ip,
       userAgent,
       latencyMs: Date.now() - startedAt,
-      usage: response.data?.usage || null,
+      usage: responseData?.usage || null,
     });
-    res.json(response.data);
+
+    res.json(formattedResponse);
   } catch (error) {
-    console.error('OpenRouter API Error:', error.response?.data || error.message);
+    console.error(`${AI_PROVIDER} API Error:`, error.response?.data || error.message);
     
     const status = error.response?.status || 500;
     const errorMessage = error.response?.data?.error?.message || error.message;
