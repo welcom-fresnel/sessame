@@ -15,6 +15,9 @@ const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY;
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
 const GEMINI_MODEL = process.env.GEMINI_MODEL || 'gemini-1.5-flash-latest';
 const GEMINI_API_VERSION = (process.env.GEMINI_API_VERSION || '').trim(); // e.g. v1 or v1beta
+const GEMINI_MODELS_CACHE_TTL_MS = Number(process.env.GEMINI_MODELS_CACHE_TTL_MS || 10 * 60 * 1000); // 10 min
+
+let geminiModelsIndexCache = { fetchedAt: 0, index: [] };
 
 function normalizeGeminiModelName(modelName) {
   if (!modelName) return modelName;
@@ -31,6 +34,96 @@ function defaultGeminiApiVersion(modelName) {
 function isGeminiModelNotFoundError(error) {
   const status = error?.response?.status;
   return status === 404;
+}
+
+async function listGeminiModelsRaw(apiVersion) {
+  const models = [];
+  let pageToken = null;
+
+  do {
+    const url = new URL(`https://generativelanguage.googleapis.com/${apiVersion}/models`);
+    url.searchParams.set('key', GEMINI_API_KEY);
+    url.searchParams.set('pageSize', '100');
+    if (pageToken) url.searchParams.set('pageToken', pageToken);
+
+    const response = await axios.get(url.toString(), {
+      headers: { 'Content-Type': 'application/json' },
+    });
+
+    if (Array.isArray(response?.data?.models)) models.push(...response.data.models);
+    pageToken = response?.data?.nextPageToken || null;
+  } while (pageToken);
+
+  return models;
+}
+
+async function buildGeminiModelsIndex() {
+  const [v1beta, v1] = await Promise.allSettled([
+    listGeminiModelsRaw('v1beta'),
+    listGeminiModelsRaw('v1'),
+  ]);
+
+  const index = [];
+  if (v1beta.status === 'fulfilled') {
+    for (const m of v1beta.value) index.push({ apiVersion: 'v1beta', model: m });
+  }
+  if (v1.status === 'fulfilled') {
+    for (const m of v1.value) index.push({ apiVersion: 'v1', model: m });
+  }
+
+  // De-duplicate by apiVersion+name.
+  const seen = new Set();
+  const unique = [];
+  for (const item of index) {
+    const name = item?.model?.name;
+    if (!name) continue;
+    const key = `${item.apiVersion}:${name}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    unique.push(item);
+  }
+
+  return unique;
+}
+
+async function getGeminiModelsIndexCached() {
+  const now = Date.now();
+  const isFresh = now - geminiModelsIndexCache.fetchedAt < GEMINI_MODELS_CACHE_TTL_MS;
+  if (isFresh && Array.isArray(geminiModelsIndexCache.index) && geminiModelsIndexCache.index.length > 0) {
+    return geminiModelsIndexCache.index;
+  }
+
+  const index = await buildGeminiModelsIndex();
+  geminiModelsIndexCache = { fetchedAt: now, index };
+  return index;
+}
+
+function pickBestGeminiModel(index) {
+  const supportsGenerateContent = (m) =>
+    Array.isArray(m?.supportedGenerationMethods) &&
+    m.supportedGenerationMethods.includes('generateContent');
+
+  const candidates = (index || [])
+    .map((i) => ({ apiVersion: i.apiVersion, model: i.model }))
+    .filter((i) => supportsGenerateContent(i.model));
+  if (candidates.length === 0) return null;
+
+  const score = (fullName) => {
+    const name = normalizeGeminiModelName(fullName || '').toLowerCase();
+    if (name.includes('flash')) return 0;
+    if (name.includes('lite')) return 1;
+    return 2;
+  };
+
+  // Prefer v1beta when tied (usually exposes more/updated models).
+  candidates.sort((a, b) => {
+    const s = score(a.model?.name) - score(b.model?.name);
+    if (s !== 0) return s;
+    if (a.apiVersion === b.apiVersion) return 0;
+    return a.apiVersion === 'v1beta' ? -1 : 1;
+  });
+
+  return candidates[0];
 }
 
 async function geminiGenerateContent({ apiVersion, modelName, apiKey, contents, generationConfig }) {
@@ -94,6 +187,26 @@ async function callGeminiWithFallback({ messages, max_tokens, temperature }) {
       lastError = err;
       if (!isGeminiModelNotFoundError(err)) throw err;
     }
+  }
+
+  // If all attempts are 404, query ListModels with the same API key and retry once
+  // using the first generateContent-capable "flash" model (or a reasonable fallback).
+  try {
+    const index = await getGeminiModelsIndexCached();
+    const best = pickBestGeminiModel(index);
+    const bestName = normalizeGeminiModelName(best?.model?.name || '');
+    if (best && bestName) {
+      console.log(`Gemini: auto-selected ${best.apiVersion} / ${bestName}`);
+      return await geminiGenerateContent({
+        apiVersion: best.apiVersion,
+        modelName: bestName,
+        apiKey: GEMINI_API_KEY,
+        contents,
+        generationConfig,
+      });
+    }
+  } catch (_) {
+    // ignore; we'll throw the original 404
   }
 
   throw lastError;
@@ -171,6 +284,36 @@ app.use(cors());
 // Route de santé (pour vérifier que le serveur fonctionne)
 app.get('/health', (req, res) => {
   res.json({ status: 'ok', message: 'Server is running' });
+});
+
+// Debug: lists Gemini models visible to the current GEMINI_API_KEY.
+app.get('/api/gemini/models', async (req, res) => {
+  try {
+    if (!GEMINI_API_KEY) return res.status(500).json({ error: 'GEMINI_API_KEY not configured on server' });
+
+    const apiVersion = (req.query.apiVersion || '').toString().trim();
+    if (apiVersion) {
+      const models = await listGeminiModelsRaw(apiVersion);
+      return res.json({ apiVersion, count: models.length, models });
+    }
+
+    const index = await getGeminiModelsIndexCached();
+    const simplified = index.map((i) => ({
+      apiVersion: i.apiVersion,
+      name: i.model?.name,
+      displayName: i.model?.displayName,
+      supportedGenerationMethods: i.model?.supportedGenerationMethods,
+      inputTokenLimit: i.model?.inputTokenLimit,
+      outputTokenLimit: i.model?.outputTokenLimit,
+    }));
+
+    res.json({ apiVersion: 'v1beta+v1', count: simplified.length, models: simplified });
+  } catch (error) {
+    res.status(error.response?.status || 500).json({
+      error: error.response?.data?.error?.message || error.message,
+      details: error.response?.data || null,
+    });
+  }
 });
 
 // Route principale pour appeller OpenRouter
