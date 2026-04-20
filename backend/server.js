@@ -160,23 +160,20 @@ app.post('/api/openrouter', async (req, res) => {
 
     const response = provider === 'gemini'
       ? await axios.post(
-          `https://gemini.googleapis.com/v1/${GEMINI_MODEL}:generateMessage?key=${GEMINI_API_KEY}`,
+          `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${GEMINI_API_KEY}`,
           {
-            temperature,
-            maxOutputTokens: Math.min(max_tokens, 2048),
-            messages: messages.map((message) => ({
-              author: message.role === 'assistant'
-                ? 'assistant'
-                : message.role === 'system'
-                  ? 'system'
-                  : 'user',
-              content: [
+            contents: messages.map((message) => ({
+              parts: [
                 {
-                  type: 'text',
                   text: message.content,
                 },
               ],
+              role: message.role === 'assistant' ? 'model' : 'user',
             })),
+            generationConfig: {
+              temperature: temperature,
+              maxOutputTokens: Math.min(max_tokens, 2048),
+            },
           },
           {
             headers: {
@@ -211,10 +208,9 @@ app.post('/api/openrouter', async (req, res) => {
         : null;
       let contentText = '';
 
-      if (candidate != null && Array.isArray(candidate.content)) {
-        contentText = candidate.content
-            .filter((item) => item.type === 'text')
-            .map((item) => item.text || '')
+      if (candidate != null && candidate.content && Array.isArray(candidate.content.parts)) {
+        contentText = candidate.content.parts
+            .map((part) => part.text || '')
             .join('\n');
       }
 
