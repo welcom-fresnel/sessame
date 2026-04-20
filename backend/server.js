@@ -13,7 +13,7 @@ const HOST = '0.0.0.0';
 const AI_PROVIDER = (process.env.AI_PROVIDER || 'openrouter').toLowerCase();
 const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY;
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
-const GEMINI_MODEL = process.env.GEMINI_MODEL || 'models/gemini-1.5-flash';
+const GEMINI_MODEL = process.env.GEMINI_MODEL || 'gemini-1.5-flash';
 
 let firestore = null;
 let firestoreInitErrorLogged = false;
