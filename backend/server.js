@@ -13,7 +13,7 @@ const HOST = '0.0.0.0';
 const AI_PROVIDER = (process.env.AI_PROVIDER || 'openrouter').toLowerCase();
 const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY;
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
-const GEMINI_MODEL = process.env.GEMINI_MODEL || 'gemini-1.5-flash';
+const GEMINI_MODEL = process.env.GEMINI_MODEL || 'gemini-1.5-flash-latest';
 
 let firestore = null;
 let firestoreInitErrorLogged = false;
@@ -160,7 +160,7 @@ app.post('/api/openrouter', async (req, res) => {
 
     const response = provider === 'gemini'
       ? await axios.post(
-          `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${GEMINI_API_KEY}`,
+          `https://generativelanguage.googleapis.com/v1/models/${GEMINI_MODEL}:generateContent?key=${GEMINI_API_KEY}`,
           {
             contents: messages.map((message) => ({
               parts: [
