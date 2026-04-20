@@ -9,10 +9,8 @@ class AIService {
   factory AIService() => _instance;
   AIService._internal();
 
-  /// URL de ton backend Node.js sur Railway
   /// À remplacer par ton URL après le déploiement
-  static const String _backendUrl =
-      'https://hopeful-courtesy-production.up.railway.app'; // Replace with your Railway URL
+  static const String _backendUrl = 'https://sessame.onrender.com'; // Replace with your Railway URL
   static const String _model = 'openrouter/free';
 
 

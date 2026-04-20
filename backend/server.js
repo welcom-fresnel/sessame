@@ -285,4 +285,14 @@ app.listen(PORT, HOST, () => {
   console.log(`📊 Health check: http://${HOST}:${PORT}/health`);
 });
 
+// Ping automatique toutes les 2 minutes pour garder Render éveillé
+setInterval(async () => {
+  try {
+    await axios.get(`http://localhost:${PORT}/health`);
+    console.log('🔄 Self-ping successful - keeping Render awake');
+  } catch (err) {
+    console.error('❌ Self-ping failed:', err.message);
+  }
+}, 2 * 60 * 1000); // 2 minutes
+
 
