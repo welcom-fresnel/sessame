@@ -37,6 +37,12 @@ git push -u origin main
    - **Key**: `OPENROUTER_API_KEY`
    - **Value**: `sk-or-v1-xxxxxxxxxxxxx` (ta vraie clÃ©)
 
+**Option Gemini (Google AI Studio)**
+- `AI_PROVIDER=gemini`
+- `GEMINI_API_KEY=...`
+- `GEMINI_MODEL=gemini-1.5-flash-latest` (ou `gemini-1.5-flash`)
+- `GEMINI_API_VERSION=v1beta` (si vide, le serveur choisit automatiquement)
+
 ### 5ï¸âƒ£ RÃ©cupÃ¨re l'URL du backend
 - Une fois dÃ©ployÃ©, Railroad te donne une URL comme: `https://sessame-production.up.railway.app`
 - **Note cette URL**, tu en auras besoin pour l'app Flutter

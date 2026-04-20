@@ -14,6 +14,90 @@ const AI_PROVIDER = (process.env.AI_PROVIDER || 'openrouter').toLowerCase();
 const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY;
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
 const GEMINI_MODEL = process.env.GEMINI_MODEL || 'gemini-1.5-flash-latest';
+const GEMINI_API_VERSION = (process.env.GEMINI_API_VERSION || '').trim(); // e.g. v1 or v1beta
+
+function normalizeGeminiModelName(modelName) {
+  if (!modelName) return modelName;
+  return modelName.startsWith('models/') ? modelName.slice('models/'.length) : modelName;
+}
+
+function defaultGeminiApiVersion(modelName) {
+  if (GEMINI_API_VERSION) return GEMINI_API_VERSION;
+  // In practice, model aliases like `*-latest` are often exposed on `v1beta`.
+  if ((modelName || '').endsWith('-latest')) return 'v1beta';
+  return 'v1';
+}
+
+function isGeminiModelNotFoundError(error) {
+  const status = error?.response?.status;
+  return status === 404;
+}
+
+async function geminiGenerateContent({ apiVersion, modelName, apiKey, contents, generationConfig }) {
+  return axios.post(
+    `https://generativelanguage.googleapis.com/${apiVersion}/models/${modelName}:generateContent?key=${apiKey}`,
+    { contents, generationConfig },
+    {
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    },
+  );
+}
+
+async function callGeminiWithFallback({ messages, max_tokens, temperature }) {
+  const normalizedModel = normalizeGeminiModelName(GEMINI_MODEL);
+  const modelWithoutLatest = normalizedModel.replace(/-latest$/, '');
+  const initialVersion = defaultGeminiApiVersion(normalizedModel);
+  const alternateVersion = initialVersion === 'v1' ? 'v1beta' : 'v1';
+
+  const attempts = [
+    { apiVersion: initialVersion, modelName: normalizedModel },
+    { apiVersion: initialVersion, modelName: modelWithoutLatest },
+    { apiVersion: alternateVersion, modelName: normalizedModel },
+    { apiVersion: alternateVersion, modelName: modelWithoutLatest },
+  ].filter((a) => a.modelName && a.modelName.length > 0);
+
+  // De-duplicate attempts while preserving order.
+  const seen = new Set();
+  const uniqueAttempts = attempts.filter((a) => {
+    const key = `${a.apiVersion}:${a.modelName}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+
+  const contents = messages.map((message) => ({
+    parts: [{ text: message.content }],
+    role: message.role === 'assistant' ? 'model' : 'user',
+  }));
+
+  const generationConfig = {
+    temperature: temperature,
+    maxOutputTokens: Math.min(max_tokens, 2048),
+  };
+
+  let lastError = null;
+  for (const attempt of uniqueAttempts) {
+    try {
+      if (uniqueAttempts.length > 1) {
+        console.log(`Gemini: trying ${attempt.apiVersion} / ${attempt.modelName}`);
+      }
+      return await geminiGenerateContent({
+        apiVersion: attempt.apiVersion,
+        modelName: attempt.modelName,
+        apiKey: GEMINI_API_KEY,
+        contents,
+        generationConfig,
+      });
+    } catch (err) {
+      lastError = err;
+      if (!isGeminiModelNotFoundError(err)) throw err;
+    }
+  }
+
+  throw lastError;
+}
 
 let firestore = null;
 let firestoreInitErrorLogged = false;
@@ -159,28 +243,7 @@ app.post('/api/openrouter', async (req, res) => {
     }
 
     const response = provider === 'gemini'
-      ? await axios.post(
-          `https://generativelanguage.googleapis.com/v1/models/${GEMINI_MODEL}:generateContent?key=${GEMINI_API_KEY}`,
-          {
-            contents: messages.map((message) => ({
-              parts: [
-                {
-                  text: message.content,
-                },
-              ],
-              role: message.role === 'assistant' ? 'model' : 'user',
-            })),
-            generationConfig: {
-              temperature: temperature,
-              maxOutputTokens: Math.min(max_tokens, 2048),
-            },
-          },
-          {
-            headers: {
-              'Content-Type': 'application/json',
-            },
-          },
-        )
+      ? await callGeminiWithFallback({ messages, max_tokens, temperature })
       : await axios.post(
           'https://openrouter.ai/api/v1/chat/completions',
           {
@@ -290,5 +353,3 @@ setInterval(async () => {
     console.error('❌ Self-ping failed:', err.message);
   }
 }, 2 * 60 * 1000); // 2 minutes
-
-
