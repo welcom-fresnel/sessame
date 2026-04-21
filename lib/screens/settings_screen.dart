@@ -74,28 +74,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
         padding: const EdgeInsets.all(16),
         children: [
           // Section Profil
-          _buildSectionHeader('Profil'),
-          const SizedBox(height: 8),
-          _buildProfileCard(context),
-          const SizedBox(height: 24),
-
-          // Section Apparence
-          _buildSectionHeader('Apparence'),
-          const SizedBox(height: 8),
-          _buildSettingTile(
-            context,
-            icon: Icons.dark_mode_rounded,
-            title: 'Mode sombre',
-            subtitle: isDark ? 'Activé' : 'Désactivé',
-            trailing: Switch(
-              value: isDark,
-              onChanged: (value) {
-                themeProvider.toggleTheme();
-              },
-              activeColor: Colors.deepPurpleAccent,
-            ),
-          ),
-          const SizedBox(height: 24),
+          // _buildSectionHeader('Profil'),
+          // const SizedBox(height: 8),
+          // _buildProfileCard(context),
+          // const SizedBox(height: 24),
 
           // Section À propos
           _buildSectionHeader('À propos'),
@@ -109,9 +91,23 @@ class _SettingsScreenState extends State<SettingsScreen> {
           ),
           _buildSettingTile(
             context,
+            icon: Icons.privacy_tip_rounded,
+            title: 'Politique de confidentialité',
+            subtitle: '',
+            onTap: null,
+          ),
+          _buildSettingTile(
+            context,
+            icon: Icons.phone_rounded,
+            title: 'Contact',
+            subtitle: '',
+            onTap: null,
+          ),
+          _buildSettingTile(
+            context,
             icon: Icons.code_rounded,
-            title: 'Développé par welcom Engondzi',
-            subtitle: '🫰🫰🫰',
+            title: 'Développé par welcom ENGONDZI',
+            subtitle: '',
             onTap: null,
           ),
         ],

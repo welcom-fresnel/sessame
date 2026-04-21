@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
+import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_analytics/firebase_analytics.dart';
+import 'package:firebase_analytics/observer.dart';
 import 'services/database_factory_initializer.dart';
 import 'providers/project_provider.dart';
 import 'providers/conversation_provider.dart';
@@ -9,6 +12,13 @@ import 'screens/splash_screen.dart'; // Importation du SplashScreen
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  try {
+    await Firebase.initializeApp();
+    await FirebaseAnalytics.instance.setAnalyticsCollectionEnabled(true);
+  } catch (e) {
+    // If Firebase isn't configured for a platform, keep the app running.
+    print('⚠️ Firebase init skipped: $e');
+  }
   await initializeDatabaseFactory();
   runApp(const MyApp());
 }
@@ -49,6 +59,7 @@ class MyApp extends StatelessWidget {
           return MaterialApp(
             title: 'Sessame - Suivi de Projets',
             debugShowCheckedModeBanner: false,
+            navigatorObservers: [FirebaseAnalyticsObserver(analytics: FirebaseAnalytics.instance)],
             themeMode: themeProvider.themeMode,
             theme: ThemeData(
               colorScheme: ColorScheme.fromSeed(

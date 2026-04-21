@@ -171,8 +171,10 @@ async function callGeminiWithFallback({ messages, max_tokens, temperature }) {
   };
 
   let lastError = null;
+  const attemptedModels = [];
   for (const attempt of uniqueAttempts) {
     try {
+      attemptedModels.push(`${attempt.apiVersion}:${attempt.modelName}`);
       if (uniqueAttempts.length > 1) {
         console.log(`Gemini: trying ${attempt.apiVersion} / ${attempt.modelName}`);
       }
@@ -196,6 +198,7 @@ async function callGeminiWithFallback({ messages, max_tokens, temperature }) {
     const best = pickBestGeminiModel(index);
     const bestName = normalizeGeminiModelName(best?.model?.name || '');
     if (best && bestName) {
+      attemptedModels.push(`${best.apiVersion}:${bestName}`);
       console.log(`Gemini: auto-selected ${best.apiVersion} / ${bestName}`);
       return await geminiGenerateContent({
         apiVersion: best.apiVersion,
@@ -205,10 +208,14 @@ async function callGeminiWithFallback({ messages, max_tokens, temperature }) {
         generationConfig,
       });
     }
-  } catch (_) {
-    // ignore; we'll throw the original 404
+  } catch (err) {
+    lastError = err;
+    console.error('Gemini: auto-selected model failed:', err.response?.data || err.message);
   }
 
+  if (lastError && attemptedModels.length > 0) {
+    lastError.geminiAttempts = attemptedModels;
+  }
   throw lastError;
 }
 

@@ -74,9 +74,13 @@ dependencies:
   http: ^1.6.0
   
   # Image picker pour les photos
-  image_picker: ^1.0.7
- 
+  image_picker: ^1.0.7
 
+  # Analytics (Firebase)
+  firebase_core: any
+  firebase_analytics: any
+
+ 
 
 
 dev_dependencies:

@@ -66,45 +66,13 @@ class _SplashScreenState extends State<SplashScreen> {
                         duration: const Duration(milliseconds: 1200),
                         child: FadeInDown(
                           duration: const Duration(milliseconds: 900),
-                          child: Hero(
-                            tag: 'logo',
-                            child: Container(
-                              width: 220,
-                              height: 220,
-                              decoration: BoxDecoration(
-                                shape: BoxShape.circle,
-                                gradient: const LinearGradient(
-                                  colors: [
-                                    Color(0xFF5B2EFF),
-                                    Color(0xFF9B4DFF),
-                                  ],
-                                  begin: Alignment.topLeft,
-                                  end: Alignment.bottomRight,
-                                ),
-                                boxShadow: [
-                                  BoxShadow(
-                                    color: const Color(0xFF5B2EFF)
-                                        .withValues(alpha: 0.4),
-                                    blurRadius: 30,
-                                    offset: const Offset(0, 18),
-                                  ),
-                                ],
-                              ),
-                              child: Center(
-                                child: Image.asset(
-                                  'assets/images/icon.png',
-                                  width: 120,
-                                  errorBuilder: (context, error, stackTrace) =>
-                                      const Icon(
-                                    Icons.auto_awesome,
-                                    size: 90,
-                                    color: Colors.white,
-                                  ),
-                                ),
-                              ),
+                          child: 
+                            Image.asset(
+                              'assets/images/png',
+                              width: 120,
+                              height: 120,
                             ),
                           ),
-                        ),
                       ),
                     ),
                   ),

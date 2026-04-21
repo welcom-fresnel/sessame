@@ -244,7 +244,7 @@ class _AddProjectScreenState extends State<AddProjectScreen> {
               const SizedBox(height: 12),
               _buildTextField(
                 controller: _titleController,
-                hint: 'Ex: Maîtriser Flutter en 30 jours',
+                hint: 'Ex: Lancer mon blog de cuisine',
                 icon: Icons.edit_note_rounded,
               ),
               const SizedBox(height: 24),
@@ -430,7 +430,7 @@ class _AddProjectScreenState extends State<AddProjectScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  isEditing ? 'Ajuste ton projet' : 'CrÃ©e un projet puissant',
+                  isEditing ? 'Ajuste ton projet' : 'Crée un projet puissant',
                   style: const TextStyle(
                     color: Colors.white,
                     fontSize: 18,
@@ -440,7 +440,7 @@ class _AddProjectScreenState extends State<AddProjectScreen> {
                 const SizedBox(height: 6),
                 Text(
                   isEditing
-                      ? 'Peaufine les dÃ©tails pour aller plus vite.'
+                      ? 'Peaufine les détails pour aller plus vite.'
                       : 'Donne un cap clair et des objectifs concrets.',
                   style: TextStyle(
                     color: Colors.white.withValues(alpha: 0.8),
@@ -885,7 +885,7 @@ class _DescriptionEditorScreenState extends State<_DescriptionEditorScreen> {
           Row(
             children: [
               const Text(
-                'Liste de dÃ©tails',
+                'Liste de détails',
                 style: TextStyle(
                   color: Colors.white,
                   fontWeight: FontWeight.bold,
@@ -934,7 +934,7 @@ class _DescriptionEditorScreenState extends State<_DescriptionEditorScreen> {
           const SizedBox(height: 12),
           if (_todos.isEmpty)
             Text(
-              'Ajoute des points clÃ©s pour structurer ton projet.',
+              'Ajoute des points clés pour structurer ton projet.',
               style: TextStyle(color: Colors.white.withValues(alpha: 0.45)),
             ),
           ..._todos.asMap().entries.map((entry) {
