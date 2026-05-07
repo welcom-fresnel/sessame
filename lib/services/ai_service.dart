@@ -11,7 +11,7 @@ class AIService {
 
   /// À remplacer par ton URL après le déploiement
   static const String _backendUrl = 'https://sessame.onrender.com'; // Replace with your Railway URL
-  static const String _model = 'openrouter/free';
+  static const String _model = 'llama-3.3-70versatitle';
 
 
 

@@ -10,12 +10,14 @@ dotenv.config();
 const app = express();
 const PORT = process.env.PORT || 3000;
 const HOST = '0.0.0.0';
-const AI_PROVIDER = (process.env.AI_PROVIDER || 'openrouter').toLowerCase();
+const AI_PROVIDER = (process.env.AI_PROVIDER || 'groq').toLowerCase();
 const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY;
+const GROQ_API_KEY = process.env.GROQ_API_KEY;
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
 const GEMINI_MODEL = process.env.GEMINI_MODEL || 'gemini-1.5-flash-latest';
 const GEMINI_API_VERSION = (process.env.GEMINI_API_VERSION || '').trim(); // e.g. v1 or v1beta
 const GEMINI_MODELS_CACHE_TTL_MS = Number(process.env.GEMINI_MODELS_CACHE_TTL_MS || 10 * 60 * 1000); // 10 min
+const GROQ_MODEL = process.env.GROQ_MODEL || 'llama-3.3-70versatitle';
 
 let geminiModelsIndexCache = { fetchedAt: 0, index: [] };
 
@@ -335,7 +337,7 @@ app.post('/api/openrouter', async (req, res) => {
   const clientProfile = req.body?.client_profile || null;
 
   try {
-    const { messages, model = 'openai/stepfun/step-3.5-flash:free', max_tokens = 10000, temperature = 0.7 } = req.body;
+    const { messages, model = GROQ_MODEL, max_tokens = 10000, temperature = 0.7 } = req.body;
 
     // Valide l'input
     if (!messages || !Array.isArray(messages)) {
@@ -354,9 +356,12 @@ app.post('/api/openrouter', async (req, res) => {
       return res.status(400).json({ error: 'messages must be an array' });
     }
 
-    const provider = AI_PROVIDER === 'gemini' || AI_PROVIDER === 'google_gemini'
-      ? 'gemini'
-      : 'openrouter';
+    const provider =
+      AI_PROVIDER === 'gemini' || AI_PROVIDER === 'google_gemini'
+        ? 'gemini'
+        : AI_PROVIDER === 'groq'
+          ? 'groq'
+          : 'openrouter';
 
     if (provider === 'openrouter' && !OPENROUTER_API_KEY) {
       await logAiRequest({
@@ -373,6 +378,23 @@ app.post('/api/openrouter', async (req, res) => {
         latencyMs: Date.now() - startedAt,
       });
       return res.status(500).json({ error: 'OPENROUTER_API_KEY not configured on server' });
+    }
+
+    if (provider === 'groq' && !GROQ_API_KEY) {
+      await logAiRequest({
+        status: 'error',
+        errorMessage: 'GROQ_API_KEY not configured on server',
+        model,
+        max_tokens,
+        temperature,
+        messages,
+        clientProfile,
+        clientId,
+        ip,
+        userAgent,
+        latencyMs: Date.now() - startedAt,
+      });
+      return res.status(500).json({ error: 'GROQ_API_KEY not configured on server' });
     }
 
     if (provider === 'gemini' && !GEMINI_API_KEY) {
@@ -392,25 +414,42 @@ app.post('/api/openrouter', async (req, res) => {
       return res.status(500).json({ error: 'GEMINI_API_KEY not configured on server' });
     }
 
-    const response = provider === 'gemini'
-      ? await callGeminiWithFallback({ messages, max_tokens, temperature })
-      : await axios.post(
-          'https://openrouter.ai/api/v1/chat/completions',
-          {
-            model,
-            messages,
-            max_tokens,
-            temperature,
-          },
-          {
-            headers: {
-              'Authorization': `Bearer ${OPENROUTER_API_KEY}`,
-              'HTTP-Referer': 'https://github.com/welcom-fresnel/sessame.git',
-              'X-Title': 'Sessame',
-              'Content-Type': 'application/json',
-            },
-          },
-        );
+    const response =
+      provider === 'gemini'
+        ? await callGeminiWithFallback({ messages, max_tokens, temperature })
+        : provider === 'groq'
+          ? await axios.post(
+              'https://api.groq.com/openai/v1/chat/completions',
+              {
+                model,
+                messages,
+                max_tokens,
+                temperature,
+              },
+              {
+                headers: {
+                  Authorization: `Bearer ${GROQ_API_KEY}`,
+                  'Content-Type': 'application/json',
+                },
+              },
+            )
+          : await axios.post(
+              'https://openrouter.ai/api/v1/chat/completions',
+              {
+                model,
+                messages,
+                max_tokens,
+                temperature,
+              },
+              {
+                headers: {
+                  'Authorization': `Bearer ${OPENROUTER_API_KEY}`,
+                  'HTTP-Referer': 'https://github.com/welcom-fresnel/sessame.git',
+                  'X-Title': 'Sessame',
+                  'Content-Type': 'application/json',
+                },
+              },
+            );
 
     const responseData = response.data;
     let formattedResponse = responseData;

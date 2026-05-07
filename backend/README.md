@@ -1,10 +1,10 @@
 # 🚀 Sessame Backend
 
-Backend Node.js qui gère l'accès sécurisé à l'API OpenRouter.
+Backend Node.js qui gère l'accès sécurisé à une API IA (Groq par défaut).
 
 ## 📋 Fonctionnement
 
-- ✅ Gère la clé API OpenRouter de façon sécurisée
+- ✅ Gère la clé API IA de façon sécurisée (Groq / OpenRouter / Gemini)
 - ✅ Expose un endpoint `/api/openrouter` pour l'app Flutter
 - ✅ Validation et gestion d'erreurs
 - ✅ CORS activé pour l'app Flutter
@@ -22,7 +22,7 @@ npm install
 cp .env.example .env
 
 # 4. Ajoute ta clé API dans .env
-# OPENROUTER_API_KEY=sk-or-v1-xxxxx...
+# GROQ_API_KEY=gsk_xxxxx...
 
 # 5. Lance le serveur
 npm run dev
@@ -34,7 +34,7 @@ Le serveur sera disponible à http://localhost:3000
 
 ### POST `/api/openrouter`
 
-Appelle l'API OpenRouter avec le message utilisateur.
+Appelle l'API IA avec le message utilisateur (Groq par défaut).
 
 **Request:**
 ```json
@@ -42,7 +42,7 @@ Appelle l'API OpenRouter avec le message utilisateur.
   "messages": [
     {"role": "user", "content": "Hello!"}
   ],
-  "model": "openai/gpt-oss-120b:free",
+  "model": "llama-3.3-70versatitle",
   "max_tokens": 800,
   "temperature": 0.7
 }

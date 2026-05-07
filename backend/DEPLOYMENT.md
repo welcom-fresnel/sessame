@@ -34,8 +34,17 @@ git push -u origin main
 1. Dans le dashboard Railroad, va Ã  ton projet
 2. Clique sur "Variables"
 3. Ajoute une nouvelle variable:
-   - **Key**: `OPENROUTER_API_KEY`
-   - **Value**: `sk-or-v1-xxxxxxxxxxxxx` (ta vraie clÃ©)
+   - **Key**: `GROQ_API_KEY`
+   - **Value**: `gsk_xxxxxxxxxxxxx` (ta vraie clÃ©)
+
+**Option OpenRouter**
+- `AI_PROVIDER=openrouter`
+- `OPENROUTER_API_KEY=...`
+
+**Option Groq (par dÃ©faut)**
+- `AI_PROVIDER=groq`
+- `GROQ_API_KEY=...`
+- `GROQ_MODEL=llama-3.3-70versatitle` (optionnel)
 
 **Option Gemini (Google AI Studio)**
 - `AI_PROVIDER=gemini`
@@ -66,7 +75,7 @@ Tu devrais voir:
 
 âœ… **Ã€ supprimer:**
 - Ancien `.env` local avec la clÃ© exposÃ©e
-- La clÃ© ancienne sur OpenRouter (tu l'as dÃ©jÃ  rÃ©gÃ©nÃ©rÃ©e)
+- La clÃ© ancienne sur OpenRouter (si tu n'en as plus besoin)
 
 ## ðŸ› ï¸ RedÃ©ploiement
 
@@ -92,8 +101,7 @@ Railroad redÃ©ploiera automatiquement en quelques secondes.
 - Attends 30 secondes que les changements se propagent
 
 **l'API rÃ©pond "API_KEY not configured"?**
-- VÃ©rifie que la variable `OPENROUTER_API_KEY` est bien ajoutÃ©e
-- La clÃ© doit commencer par `sk-or-v1-`
+- VÃ©rifie que la variable (`GROQ_API_KEY` / `OPENROUTER_API_KEY` / `GEMINI_API_KEY`) est bien ajoutÃ©e
 
 ## ðŸ“Š Monitoring
 
