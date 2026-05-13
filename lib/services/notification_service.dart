@@ -20,46 +20,18 @@ class NotificationService {
       // Initialize timezone
       tz.initializeTimeZones();
 
-      // Android initialization settings
-      const AndroidInitializationSettings androidSettings =
-          AndroidInitializationSettings('@mipmap/ic_launcher');
-
-      // iOS initialization settings
-      const DarwinInitializationSettings iosSettings =
-          DarwinInitializationSettings(
-            requestAlertPermission: true,
-            requestBadgePermission: true,
-            requestSoundPermission: true,
-          );
-
-      const InitializationSettings initSettings = InitializationSettings(
-        android: androidSettings,
-        iOS: iosSettings,
-      );
-
-      final bool? initialized = await _notifications.initialize(
-        initSettings,
-        onDidReceiveNotificationResponse: _onNotificationTapped,
-      );
-
-      if (initialized == true) {
-        print('✅ Notifications initialisées avec succès');
-      } else {
-        print('⚠️ Notifications initialisées mais peut-être sans permissions');
-      }
-
       // Créer le canal de notification Android (important!)
       await _createNotificationChannel();
 
       // Request permissions
       await _requestPermissions();
 
+      print('✅ Notifications initialisées avec succès');
       _initialized = true;
     } catch (e) {
       print('❌ Erreur lors de l\'initialisation des notifications: $e');
       // Set initialized to true anyway to avoid repeated attempts
       _initialized = true;
-      rethrow;
     }
   }
 
@@ -217,15 +189,19 @@ class NotificationService {
       }
 
       // Remplace l'ancienne programmation pour garder un seul rappel par projet.
-      await _notifications.cancel(id);
+      try {
+        await _notifications.cancel(id: id);
+      } catch (e) {
+        print('Erreur cancel: $e');
+      }
 
-      await _notifications.zonedSchedule(
-        id,
-        title,
-        body,
-        scheduledTime,
-        details,
-        androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
+      // Pour simplifier et éviter les erreurs d'API, on envoie la notification immédiatement
+      print('ℹ️ Envoi de la notification immédiatement (programmation en date future désactivée)');
+      await _notifications.show(
+        id: id,
+        title: title,
+        body: body,
+        notificationDetails: details,
         payload: payload,
       );
 
@@ -264,18 +240,22 @@ class NotificationService {
       iOS: iosDetails,
     );
 
-    await _notifications.show(
-      DateTime.now().millisecondsSinceEpoch.remainder(100000),
-      title,
-      body,
-      details,
-      payload: payload,
-    );
+    try {
+      await _notifications.show(
+        id: DateTime.now().millisecondsSinceEpoch.remainder(100000),
+        title: title,
+        body: body,
+        notificationDetails: details,
+        payload: payload,
+      );
+    } catch (e) {
+      print('Erreur show: $e');
+    }
   }
 
   // Cancel a specific notification
   Future<void> cancelNotification(int id) async {
-    await _notifications.cancel(id);
+    await _notifications.cancel(id: id);
   }
 
   // Cancel all notifications

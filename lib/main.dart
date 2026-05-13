@@ -9,6 +9,7 @@ import 'providers/project_provider.dart';
 import 'providers/conversation_provider.dart';
 import 'providers/theme_provider.dart';
 import 'screens/splash_screen.dart'; // Importation du SplashScreen
+import 'screens/auth_screen.dart'; // Importation de l'AuthScreen
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();

@@ -50,8 +50,8 @@ dependencies:
   path: ^1.8.3
   
   # Notifications
-  flutter_local_notifications: ^19.5.0
-  timezone: ^0.10.1
+  flutter_local_notifications: ^21.0.0
+  timezone: ^0.11.0
   
   # Date formatting
   intl: ^0.20.2
@@ -67,7 +67,7 @@ dependencies:
   
   # Animations et UI moderne
   wolt_modal_sheet: ^0.11.0
-  animate_do: ^4.2.0
+  animate_do: ^5.1.0
   lottie: ^3.1.2
   
   # HTTP requests pour IA (OpenRouter)
