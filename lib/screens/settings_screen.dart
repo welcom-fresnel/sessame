@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+
 import '../providers/theme_provider.dart';
+import '../services/auth_service.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -14,6 +16,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   final _nameController = TextEditingController();
   final _ageController = TextEditingController();
   final _addressController = TextEditingController();
+  final _authService = AuthService();
 
   String _gender = 'Non precise';
   bool _isLoadingProfile = true;
@@ -64,7 +67,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     return Scaffold(
       appBar: AppBar(
         title: const Text(
-          'Paramètres',
+          'ParamÃ¨tres',
           style: TextStyle(fontWeight: FontWeight.bold),
         ),
         backgroundColor: Colors.transparent,
@@ -73,14 +76,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
-          // Section Profil
-          // _buildSectionHeader('Profil'),
-          // const SizedBox(height: 8),
-          // _buildProfileCard(context),
-          // const SizedBox(height: 24),
-
-          // Section À propos
-          _buildSectionHeader('À propos'),
+          // Section Ã€ propos
+          _buildSectionHeader('Ã€ propos'),
           const SizedBox(height: 8),
           _buildSettingTile(
             context,
@@ -92,7 +89,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
           _buildSettingTile(
             context,
             icon: Icons.privacy_tip_rounded,
-            title: 'Politique de confidentialité',
+            title: 'Politique de confidentialitÃ©',
             subtitle: '',
             onTap: null,
           ),
@@ -103,13 +100,31 @@ class _SettingsScreenState extends State<SettingsScreen> {
             subtitle: '',
             onTap: null,
           ),
+          const SizedBox(height: 24),
+          // la oÃ¹ je dois mettre le bouton qui ramene sur la version premium
           _buildSettingTile(
             context,
-            icon: Icons.code_rounded,
-            title: 'Développé par welcom ENGONDZI',
-            subtitle: '',
-            onTap: null,
+            icon: Icons.star_rounded,
+            title: 'Passer Ã  Premium',
+            subtitle: 'AccÃ©dez Ã  des fonctionnalitÃ©s exclusives',
+            onTap: () {
+              // Logique pour passer Ã  la version premium
+            },
           ),
+          if (_authService.currentUser != null) ...[
+            const SizedBox(height: 24),
+            _buildSectionHeader('Compte'),
+            const SizedBox(height: 8),
+            _buildSettingTile(
+              context,
+              icon: Icons.logout_rounded,
+              title: 'Se dÃ©connecter',
+              subtitle: _authService.currentUser?.phoneNumber ?? '',
+              onTap: () async {
+                await _authService.signOut();
+              },
+            ),
+          ],
         ],
       ),
     );

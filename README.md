@@ -2,6 +2,10 @@
 
 Une application mobile Flutter pour suivre et gérer vos projets personnels avec des rappels intelligents et un suivi de progression.
 
+## 🔐 Firebase (auth + sync)
+
+Pour publier sur Play Store / App Store avec connexion téléphone et synchronisation Firestore par utilisateur, voir `FIREBASE_SETUP.md`.
+
 ## ✨ Fonctionnalités
 
 ### 📝 Gestion de Projets

@@ -12,7 +12,20 @@
           "package_name": "com.example.sessame"
         }
       },
-      "oauth_client": [],
+      "oauth_client": [
+        {
+          "client_id": "401712409524-fq8s6mbq0g1c90ovoq0smia18l8ltpcn.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.sessame",
+            "certificate_hash": "67f94e4592f449e9c1cf6f16036b08452c5c85f0"
+          }
+        },
+        {
+          "client_id": "401712409524-n3ujtrjnvldtcfbijvbt3f57ksoek2pe.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
       "api_key": [
         {
           "current_key": "AIzaSyA6x9eQxSffl_9maV3PxrSaOaGgApbBeE0"
@@ -20,7 +33,12 @@
       ],
       "services": {
         "appinvite_service": {
-          "other_platform_oauth_client": []
+          "other_platform_oauth_client": [
+            {
+              "client_id": "401712409524-n3ujtrjnvldtcfbijvbt3f57ksoek2pe.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
         }
       }
     }

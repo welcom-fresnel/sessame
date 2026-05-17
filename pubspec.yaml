@@ -79,6 +79,8 @@ dependencies:
   # Analytics (Firebase)
   firebase_core: any
   firebase_analytics: any
+  firebase_auth: any
+  cloud_firestore: any
 
  
 

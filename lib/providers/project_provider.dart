@@ -1,12 +1,23 @@
+import 'dart:async';
+
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+
 import '../models/project.dart';
 import '../models/task.dart';
+import '../services/auth_service.dart';
 import '../services/database_service.dart';
+import '../services/firestore_service.dart';
 import '../services/notification_service.dart';
 
 class ProjectProvider extends ChangeNotifier {
   final DatabaseService _dbService = DatabaseService();
   final NotificationService _notificationService = NotificationService();
+  final AuthService _authService = AuthService();
+  final FirestoreService _firestoreService = FirestoreService();
+
+  StreamSubscription<User?>? _authSub;
+  String? _uid;
 
   List<Project> _projects = [];
   List<Task> _currentProjectTasks = [];
@@ -15,13 +26,19 @@ class ProjectProvider extends ChangeNotifier {
   List<Project> get projects => _projects;
   List<Task> get currentProjectTasks => _currentProjectTasks;
   bool get isLoading => _isLoading;
+  bool get isSignedIn => _uid != null;
+
+  ProjectProvider() {
+    _uid = _authService.currentUser?.uid;
+    _authSub = _authService.authStateChanges().listen((user) {
+      _handleAuthChange(user?.uid);
+    });
+  }
 
   // Filter projects
-  List<Project> get activeProjects =>
-      _projects.where((p) => p.status == 'en_cours').toList();
+  List<Project> get activeProjects => _projects.where((p) => p.status == 'en_cours').toList();
 
-  List<Project> get completedProjects =>
-      _projects.where((p) => p.status == 'terminé').toList();
+  List<Project> get completedProjects => _projects.where((p) => p.status == 'terminÃ©').toList();
 
   List<Project> get overdueProjects =>
       _projects.where((p) => p.isOverdue && p.status == 'en_cours').toList();
@@ -31,15 +48,62 @@ class ProjectProvider extends ChangeNotifier {
     try {
       await _notificationService.initialize();
     } catch (e) {
-      print('⚠️ Notification initialization failed: $e');
-      // Continue anyway, notifications are not critical
+      // Notifications are not critical
+      // ignore: avoid_print
+      print('Notification initialization failed: $e');
     }
+
     try {
+      if (_uid != null) {
+        await _migrateLocalToCloudIfNeeded(_uid!);
+      }
       await loadProjects();
     } catch (e) {
-      print('❌ Error loading projects during initialization: $e');
-      // At least create an empty list so the app doesn't crash
+      // ignore: avoid_print
+      print('Error loading projects during initialization: $e');
       _projects = [];
+    }
+  }
+
+  @override
+  void dispose() {
+    _authSub?.cancel();
+    super.dispose();
+  }
+
+  Future<void> _handleAuthChange(String? newUid) async {
+    if (_uid == newUid) return;
+    _uid = newUid;
+
+    try {
+      if (_uid != null) {
+        await _migrateLocalToCloudIfNeeded(_uid!);
+      }
+      await loadProjects();
+    } catch (e) {
+      // ignore: avoid_print
+      print('Auth change reload failed: $e');
+    }
+  }
+
+  Future<void> _migrateLocalToCloudIfNeeded(String uid) async {
+    try {
+      final remote = await _firestoreService.getAllProjects(uid);
+      if (remote.isNotEmpty) return;
+
+      final localProjects = await _dbService.getAllProjects();
+      if (localProjects.isEmpty) return;
+
+      for (final project in localProjects) {
+        await _firestoreService.upsertProject(uid, project);
+        final tasks = await _dbService.getTasksByProject(project.id);
+        for (final task in tasks) {
+          await _firestoreService.upsertTask(uid, task);
+        }
+      }
+    } catch (e) {
+      // ignore: avoid_print
+      print('Migration local->cloud skipped: $e');
     }
   }
 
@@ -49,9 +113,14 @@ class ProjectProvider extends ChangeNotifier {
     notifyListeners();
 
     try {
-      _projects = await _dbService.getAllProjects();
+      if (_uid != null) {
+        _projects = await _firestoreService.getAllProjects(_uid!);
+      } else {
+        _projects = await _dbService.getAllProjects();
+      }
       await _syncProjectNotifications();
     } catch (e) {
+      // ignore: avoid_print
       print('Error loading projects: $e');
     } finally {
       _isLoading = false;
@@ -62,10 +131,15 @@ class ProjectProvider extends ChangeNotifier {
   // Add a new project
   Future<void> addProject(Project project) async {
     try {
-      await _dbService.insertProject(project);
+      if (_uid != null) {
+        await _firestoreService.upsertProject(_uid!, project);
+      } else {
+        await _dbService.insertProject(project);
+      }
       await _notificationService.scheduleProjectNotification(project);
       await loadProjects();
     } catch (e) {
+      // ignore: avoid_print
       print('Error adding project: $e');
       rethrow;
     }
@@ -74,20 +148,21 @@ class ProjectProvider extends ChangeNotifier {
   // Update a project
   Future<void> updateProject(Project project) async {
     try {
-      // Update last update date
-      final updatedProject = project.copyWith(
-        lastUpdateDate: DateTime.now(),
-      );
+      final updatedProject = project.copyWith(lastUpdateDate: DateTime.now());
 
-      await _dbService.updateProject(updatedProject);
+      if (_uid != null) {
+        await _firestoreService.upsertProject(_uid!, updatedProject);
+      } else {
+        await _dbService.updateProject(updatedProject);
+      }
 
-      // Reschedule notification if project is still active
       if (project.status == 'en_cours') {
         await _notificationService.scheduleProjectNotification(updatedProject);
       }
 
       await loadProjects();
     } catch (e) {
+      // ignore: avoid_print
       print('Error updating project: $e');
       rethrow;
     }
@@ -96,10 +171,15 @@ class ProjectProvider extends ChangeNotifier {
   // Delete a project
   Future<void> deleteProject(String projectId) async {
     try {
-      await _dbService.deleteProject(projectId);
+      if (_uid != null) {
+        await _firestoreService.deleteProject(_uid!, projectId);
+      } else {
+        await _dbService.deleteProject(projectId);
+      }
       await _notificationService.cancelNotification(projectId.hashCode);
       await loadProjects();
     } catch (e) {
+      // ignore: avoid_print
       print('Error deleting project: $e');
       rethrow;
     }
@@ -108,26 +188,49 @@ class ProjectProvider extends ChangeNotifier {
   // Update project progress based on tasks
   Future<void> updateProjectProgress(String projectId) async {
     try {
-      final totalTasks = await _dbService.getTotalTasksCount(projectId);
-      final completedTasks = await _dbService.getCompletedTasksCount(projectId);
+      int totalTasks = 0;
+      int completedTasks = 0;
+
+      if (_uid != null) {
+        final tasks = await _firestoreService.getTasksByProject(_uid!, projectId);
+        totalTasks = tasks.length;
+        completedTasks = tasks.where((t) => t.isCompleted).length;
+      } else {
+        totalTasks = await _dbService.getTotalTasksCount(projectId);
+        completedTasks = await _dbService.getCompletedTasksCount(projectId);
+      }
 
       final progress = totalTasks > 0 ? completedTasks / totalTasks : 0.0;
 
-      final project = await _dbService.getProjectById(projectId);
+      Project? project;
+      if (_uid != null) {
+        try {
+          project = _projects.firstWhere((p) => p.id == projectId);
+        } catch (_) {
+          project = null;
+        }
+      } else {
+        project = await _dbService.getProjectById(projectId);
+      }
+
       if (project != null) {
         final updatedProject = project.copyWith(
           progress: progress,
           lastUpdateDate: DateTime.now(),
         );
-        await _dbService.updateProject(updatedProject);
+
+        if (_uid != null) {
+          await _firestoreService.upsertProject(_uid!, updatedProject);
+        } else {
+          await _dbService.updateProject(updatedProject);
+        }
+
         await _notificationService.scheduleProjectNotification(updatedProject);
-        await _notifyProgressMilestone(
-          project: project,
-          updatedProject: updatedProject,
-        );
+        await _notifyProgressMilestone(project: project, updatedProject: updatedProject);
         await loadProjects();
       }
     } catch (e) {
+      // ignore: avoid_print
       print('Error updating project progress: $e');
     }
   }
@@ -137,9 +240,14 @@ class ProjectProvider extends ChangeNotifier {
   // Load tasks for a specific project
   Future<void> loadProjectTasks(String projectId) async {
     try {
-      _currentProjectTasks = await _dbService.getTasksByProject(projectId);
+      if (_uid != null) {
+        _currentProjectTasks = await _firestoreService.getTasksByProject(_uid!, projectId);
+      } else {
+        _currentProjectTasks = await _dbService.getTasksByProject(projectId);
+      }
       notifyListeners();
     } catch (e) {
+      // ignore: avoid_print
       print('Error loading tasks: $e');
     }
   }
@@ -147,10 +255,15 @@ class ProjectProvider extends ChangeNotifier {
   // Add a task to a project
   Future<void> addTask(Task task) async {
     try {
-      await _dbService.insertTask(task);
+      if (_uid != null) {
+        await _firestoreService.upsertTask(_uid!, task);
+      } else {
+        await _dbService.insertTask(task);
+      }
       await loadProjectTasks(task.projectId);
       await updateProjectProgress(task.projectId);
     } catch (e) {
+      // ignore: avoid_print
       print('Error adding task: $e');
       rethrow;
     }
@@ -159,10 +272,15 @@ class ProjectProvider extends ChangeNotifier {
   // Update a task
   Future<void> updateTask(Task task) async {
     try {
-      await _dbService.updateTask(task);
+      if (_uid != null) {
+        await _firestoreService.upsertTask(_uid!, task);
+      } else {
+        await _dbService.updateTask(task);
+      }
       await loadProjectTasks(task.projectId);
       await updateProjectProgress(task.projectId);
     } catch (e) {
+      // ignore: avoid_print
       print('Error updating task: $e');
       rethrow;
     }
@@ -177,6 +295,7 @@ class ProjectProvider extends ChangeNotifier {
       );
       await updateTask(updatedTask);
     } catch (e) {
+      // ignore: avoid_print
       print('Error toggling task: $e');
     }
   }
@@ -184,10 +303,15 @@ class ProjectProvider extends ChangeNotifier {
   // Delete a task
   Future<void> deleteTask(String taskId, String projectId) async {
     try {
-      await _dbService.deleteTask(taskId);
+      if (_uid != null) {
+        await _firestoreService.deleteTask(_uid!, projectId, taskId);
+      } else {
+        await _dbService.deleteTask(taskId);
+      }
       await loadProjectTasks(projectId);
       await updateProjectProgress(projectId);
     } catch (e) {
+      // ignore: avoid_print
       print('Error deleting task: $e');
       rethrow;
     }
@@ -196,6 +320,25 @@ class ProjectProvider extends ChangeNotifier {
   // ========== STATISTICS ==========
 
   Future<Map<String, int>> getStatistics() async {
+    if (_uid != null) {
+      if (_projects.isEmpty) {
+        await loadProjects();
+      }
+      int total = _projects.length;
+      int enCours = _projects.where((p) => p.status == 'en_cours').length;
+      int termines = _projects.where((p) => p.status == 'terminÃ©').length;
+      int abandonnes = _projects.where((p) => p.status == 'abandonnÃ©').length;
+      int enRetard = _projects.where((p) => p.isOverdue).length;
+
+      return {
+        'total': total,
+        'en_cours': enCours,
+        'terminÃ©s': termines,
+        'abandonnÃ©s': abandonnes,
+        'en_retard': enRetard,
+      };
+    }
+
     return await _dbService.getProjectStatistics();
   }
 
@@ -221,10 +364,10 @@ class ProjectProvider extends ChangeNotifier {
       if (previous < milestone && current >= milestone) {
         final percent = (milestone * 100).toInt();
         await _notificationService.sendImmediateNotification(
-          title: '📈 ${project.title} progresse',
+          title: 'ðŸ“ˆ ${project.title} progresse',
           body: percent == 100
-              ? 'Bravo, projet terminé à 100% !'
-              : 'Tu as atteint $percent% de progression. Continue comme ça.',
+              ? 'Bravo, projet terminÃ© Ã  100% !'
+              : 'Tu as atteint $percent% de progression. Continue comme Ã§a.',
           payload: project.id,
         );
         break;
