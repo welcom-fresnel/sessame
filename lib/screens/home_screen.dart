@@ -1,6 +1,10 @@
+import 'dart:async';
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:animate_do/animate_do.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../models/home_ad.dart';
 import '../providers/project_provider.dart';
 import '../services/ad_service.dart';
@@ -18,10 +22,13 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
+  static const String _guidedTourSeenKey = 'home_guided_tour_seen';
   String _selectedFilter = 'tous'; // tous, en_cours, terminé
   final TextEditingController _searchController = TextEditingController();
   String _searchQuery = '';
-  HomeAd? _homeAd;
+  List<HomeAd> _homeAds = [];
+  int _currentAdIndex = 0;
+  Timer? _adRotationTimer;
 
   @override
   void initState() {
@@ -34,17 +41,185 @@ class _HomeScreenState extends State<HomeScreen> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       context.read<ProjectProvider>().loadProjects();
       _loadHomeAd();
+      _showGuidedTourIfNeeded();
     });
   }
 
-  Future<void> _loadHomeAd() async {
-    final ad = await AdService().getHomeSummaryAd();
+  Future<void> _showGuidedTourIfNeeded() async {
+    final prefs = await SharedPreferences.getInstance();
+    final hasSeenTour = prefs.getBool(_guidedTourSeenKey) ?? false;
+    if (hasSeenTour || !mounted) return;
+
+    await Future.delayed(const Duration(milliseconds: 700));
     if (!mounted) return;
-    setState(() => _homeAd = ad);
+    await _showGuidedTourDialog();
+    await prefs.setBool(_guidedTourSeenKey, true);
+  }
+
+  Future<void> _showGuidedTourDialog() async {
+    var currentStep = 0;
+    const steps = [
+      (
+        icon: Icons.folder_rounded,
+        title: 'Bienvenue sur Sesame',
+        message:
+            'Ici, tu peux organiser tes objectifs sous forme de projets simples à suivre.',
+      ),
+      (
+        icon: Icons.add_circle_rounded,
+        title: 'Créer ton premier projet',
+        message:
+            'Utilise le bouton New en bas pour ajouter un projet, définir une deadline et suivre ta progression.',
+      ),
+      (
+        icon: Icons.search_rounded,
+        title: 'Retrouver rapidement',
+        message:
+            'La barre de recherche et les filtres te permettent de retrouver tes projets en cours ou terminés.',
+      ),
+      (
+        icon: Icons.auto_graph_rounded,
+        title: 'Suivre tes performances',
+        message:
+            'Le bouton statistiques te montre ton évolution, tes projets en retard et tes résultats Premium.',
+      ),
+      (
+        icon: Icons.smart_toy_rounded,
+        title: 'Demander conseil',
+        message:
+            'Le coach IA peut t’aider à trouver les prochaines étapes pour avancer plus vite.',
+      ),
+    ];
+
+    await showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            final step = steps[currentStep];
+            final isLastStep = currentStep == steps.length - 1;
+
+            return AlertDialog(
+              backgroundColor: const Color(0xFF1A1A1A),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(28),
+              ),
+              contentPadding: const EdgeInsets.fromLTRB(24, 24, 24, 16),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(
+                    width: 64,
+                    height: 64,
+                    decoration: BoxDecoration(
+                      color: Colors.deepPurpleAccent.withValues(alpha: 0.18),
+                      borderRadius: BorderRadius.circular(22),
+                    ),
+                    child: Icon(step.icon, color: Colors.deepPurpleAccent, size: 34),
+                  ),
+                  const SizedBox(height: 18),
+                  Text(
+                    step.title,
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  Text(
+                    step.message,
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(
+                      color: Colors.white70,
+                      height: 1.45,
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: List.generate(
+                      steps.length,
+                      (index) => AnimatedContainer(
+                        duration: const Duration(milliseconds: 200),
+                        width: index == currentStep ? 22 : 8,
+                        height: 8,
+                        margin: const EdgeInsets.symmetric(horizontal: 3),
+                        decoration: BoxDecoration(
+                          color: index == currentStep
+                              ? Colors.deepPurpleAccent
+                              : Colors.white.withValues(alpha: 0.2),
+                          borderRadius: BorderRadius.circular(99),
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              actions: [
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  alignment: WrapAlignment.end,
+                  children: [
+                    TextButton(
+                      onPressed: () => Navigator.pop(context),
+                      child: const Text('Passer'),
+                    ),
+                    ElevatedButton(
+                      onPressed: () {
+                        if (isLastStep) {
+                          Navigator.pop(context);
+                        } else {
+                          setDialogState(() => currentStep++);
+                        }
+                      },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.deepPurpleAccent,
+                        foregroundColor: Colors.white,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(14),
+                        ),
+                      ),
+                      child: Text(isLastStep ? 'Commencer' : 'Suivant'),
+                    ),
+                  ],
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
+
+  Future<void> _loadHomeAd() async {
+    final ads = await AdService().getHomeSummaryAds();
+    if (!mounted) return;
+    setState(() {
+      _homeAds = ads;
+      _currentAdIndex = 0;
+    });
+    _startAdRotation();
+  }
+
+  void _startAdRotation() {
+    _adRotationTimer?.cancel();
+    if (_homeAds.length <= 1) return;
+
+    _adRotationTimer = Timer.periodic(const Duration(seconds: 5), (_) {
+      if (!mounted) return;
+      setState(() {
+        _currentAdIndex = (_currentAdIndex + 1) % _homeAds.length;
+      });
+    });
   }
 
   @override
   void dispose() {
+    _adRotationTimer?.cancel();
     _searchController.dispose();
     super.dispose();
   }
@@ -299,7 +474,7 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget _buildSummaryCard(ProjectProvider provider) {
     final activeCount = provider.activeProjects.length;
     final overdueCount = provider.overdueProjects.length;
-    final ad = _homeAd;
+    final ad = _homeAds.isEmpty ? null : _homeAds[_currentAdIndex];
     final showAd = ad != null;
 
     return Container(
@@ -319,10 +494,13 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
         ],
       ),
-      child: Row(
-        children: [
-          Expanded(
-            child: Column(
+      child: AnimatedSwitcher(
+        duration: const Duration(milliseconds: 450),
+        child: Row(
+          key: ValueKey(ad?.id ?? 'summary'),
+          children: [
+            Expanded(
+              child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
@@ -368,22 +546,25 @@ class _HomeScreenState extends State<HomeScreen> {
                   ),
                 ],
               ],
+              ),
             ),
-          ),
-          if (showAd && ad.isImageAd)
-            _buildAdImage(ad.imageUrl!)
-          else
-            Icon(
-              showAd ? Icons.campaign_rounded : Icons.rocket_launch_rounded,
-              color: Colors.white,
-              size: 40,
-            ),
-        ],
+            if (showAd && ad.isImageAd)
+              _buildAdImage(ad.imageUrl!)
+            else
+              Icon(
+                showAd ? Icons.campaign_rounded : Icons.rocket_launch_rounded,
+                color: Colors.white,
+                size: 40,
+              ),
+          ],
+        ),
       ),
     );
   }
 
   Widget _buildAdImage(String imageUrl) {
+    final imageProvider = _adImageProvider(imageUrl);
+
     return Container(
       width: 74,
       height: 74,
@@ -394,10 +575,10 @@ class _HomeScreenState extends State<HomeScreen> {
         border: Border.all(color: Colors.white.withValues(alpha: 0.18)),
       ),
       clipBehavior: Clip.antiAlias,
-      child: Image.network(
-        imageUrl,
+      child: Image(
+        image: imageProvider,
         fit: BoxFit.cover,
-        errorBuilder: (_, __, ___) => const Icon(
+        errorBuilder: (context, error, stackTrace) => const Icon(
           Icons.campaign_rounded,
           color: Colors.white,
           size: 34,
@@ -417,6 +598,15 @@ class _HomeScreenState extends State<HomeScreen> {
         },
       ),
     );
+  }
+
+  ImageProvider _adImageProvider(String imageUrl) {
+    if (imageUrl.startsWith('data:image')) {
+      final base64Part = imageUrl.substring(imageUrl.indexOf(',') + 1);
+      return MemoryImage(base64Decode(base64Part));
+    }
+
+    return NetworkImage(imageUrl);
   }
 
   Widget _buildFilters() {

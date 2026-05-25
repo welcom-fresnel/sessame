@@ -310,22 +310,21 @@ app.get('/api/ads/home-summary', async (req, res) => {
 
   try {
     const db = getFirestoreDb();
-    if (!db) return res.json({ ad: fallbackAd, source: 'fallback' });
+    if (!db) return res.json({ ad: fallbackAd, ads: [fallbackAd], source: 'fallback' });
 
     const snap = await db
       .collection('ads')
       .where('placement', '==', 'home_summary')
       .where('active', '==', true)
       .orderBy('priority', 'desc')
-      .limit(1)
+      .limit(10)
       .get();
 
-    if (snap.empty) return res.json({ ad: fallbackAd, source: 'fallback' });
+    if (snap.empty) return res.json({ ad: fallbackAd, ads: [fallbackAd], source: 'fallback' });
 
-    const doc = snap.docs[0];
-    const data = doc.data();
-    res.json({
-      ad: {
+    const ads = snap.docs.map((doc) => {
+      const data = doc.data();
+      return {
         id: doc.id,
         title: data.title || fallbackAd.title,
         message: data.message || fallbackAd.message,
@@ -335,12 +334,17 @@ app.get('/api/ads/home-summary', async (req, res) => {
         imageUrl: data.imageUrl || null,
         accentColorHex: data.accentColorHex || fallbackAd.accentColorHex,
         active: data.active === true,
-      },
+      };
+    });
+
+    res.json({
+      ad: ads[0] || fallbackAd,
+      ads: ads.length > 0 ? ads : [fallbackAd],
       source: 'firestore',
     });
   } catch (error) {
     console.error('Ads endpoint error:', error.message);
-    res.json({ ad: fallbackAd, source: 'fallback_error' });
+    res.json({ ad: fallbackAd, ads: [fallbackAd], source: 'fallback_error' });
   }
 });
 
