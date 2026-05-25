@@ -370,12 +370,51 @@ class _HomeScreenState extends State<HomeScreen> {
               ],
             ),
           ),
-          Icon(
-            showAd ? Icons.campaign_rounded : Icons.rocket_launch_rounded,
-            color: Colors.white,
-            size: 40,
-          ),
+          if (showAd && ad.isImageAd)
+            _buildAdImage(ad.imageUrl!)
+          else
+            Icon(
+              showAd ? Icons.campaign_rounded : Icons.rocket_launch_rounded,
+              color: Colors.white,
+              size: 40,
+            ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildAdImage(String imageUrl) {
+    return Container(
+      width: 74,
+      height: 74,
+      margin: const EdgeInsets.only(left: 14),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.14),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.18)),
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: Image.network(
+        imageUrl,
+        fit: BoxFit.cover,
+        errorBuilder: (_, __, ___) => const Icon(
+          Icons.campaign_rounded,
+          color: Colors.white,
+          size: 34,
+        ),
+        loadingBuilder: (context, child, loadingProgress) {
+          if (loadingProgress == null) return child;
+          return const Center(
+            child: SizedBox(
+              width: 20,
+              height: 20,
+              child: CircularProgressIndicator(
+                strokeWidth: 2,
+                color: Colors.white,
+              ),
+            ),
+          );
+        },
       ),
     );
   }

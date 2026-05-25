@@ -4,6 +4,8 @@ class HomeAd {
   final String message;
   final String ctaLabel;
   final String? ctaUrl;
+  final String type;
+  final String? imageUrl;
   final String accentColorHex;
   final bool active;
 
@@ -13,6 +15,8 @@ class HomeAd {
     required this.message,
     required this.ctaLabel,
     this.ctaUrl,
+    required this.type,
+    this.imageUrl,
     required this.accentColorHex,
     required this.active,
   });
@@ -24,10 +28,14 @@ class HomeAd {
       message: (json['message'] ?? '').toString(),
       ctaLabel: (json['ctaLabel'] ?? 'Découvrir').toString(),
       ctaUrl: json['ctaUrl']?.toString(),
+      type: (json['type'] ?? 'text').toString(),
+      imageUrl: json['imageUrl']?.toString(),
       accentColorHex: (json['accentColorHex'] ?? '#7C4DFF').toString(),
       active: json['active'] == true,
     );
   }
+
+  bool get isImageAd => type == 'image' && imageUrl != null && imageUrl!.trim().isNotEmpty;
 
   bool get isDisplayable => active && title.trim().isNotEmpty && message.trim().isNotEmpty;
 }

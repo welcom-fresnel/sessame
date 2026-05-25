@@ -302,6 +302,8 @@ app.get('/api/ads/home-summary', async (req, res) => {
     message: 'Débloque les statistiques avancées, les exports et les modèles Premium.',
     ctaLabel: 'Voir Premium',
     ctaUrl: 'sesame://premium',
+    type: 'text',
+    imageUrl: null,
     accentColorHex: '#FFD740',
     active: true,
   };
@@ -329,6 +331,8 @@ app.get('/api/ads/home-summary', async (req, res) => {
         message: data.message || fallbackAd.message,
         ctaLabel: data.ctaLabel || fallbackAd.ctaLabel,
         ctaUrl: data.ctaUrl || fallbackAd.ctaUrl,
+        type: data.type === 'image' ? 'image' : 'text',
+        imageUrl: data.imageUrl || null,
         accentColorHex: data.accentColorHex || fallbackAd.accentColorHex,
         active: data.active === true,
       },
