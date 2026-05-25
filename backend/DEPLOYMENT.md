@@ -40,8 +40,9 @@ git push -u origin main
 **Option OpenRouter**
 - `AI_PROVIDER=openrouter`
 - `OPENROUTER_API_KEY=...`
+- `OPENROUTER_MODEL=deepseek/deepseek-v4-flash:free`
 
-**Option Groq (par dÃ©faut)**
+**Option Groq**
 - `AI_PROVIDER=groq`
 - `GROQ_API_KEY=...`
 - `GROQ_MODEL=llama-3.3-70versatitle` (optionnel)

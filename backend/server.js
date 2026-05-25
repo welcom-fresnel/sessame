@@ -10,8 +10,9 @@ dotenv.config();
 const app = express();
 const PORT = process.env.PORT || 3000;
 const HOST = '0.0.0.0';
-const AI_PROVIDER = (process.env.AI_PROVIDER || 'groq').toLowerCase();
+const AI_PROVIDER = (process.env.AI_PROVIDER || 'openrouter').toLowerCase();
 const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY;
+const OPENROUTER_MODEL = process.env.OPENROUTER_MODEL || 'deepseek/deepseek-v4-flash:free';
 const GROQ_API_KEY = process.env.GROQ_API_KEY;
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
 const GEMINI_MODEL = process.env.GEMINI_MODEL || 'gemini-1.5-flash-latest';
@@ -390,7 +391,8 @@ app.post('/api/openrouter', async (req, res) => {
   const clientProfile = req.body?.client_profile || null;
 
   try {
-    const { messages, model = GROQ_MODEL, max_tokens = 10000, temperature = 0.7 } = req.body;
+    const defaultModel = AI_PROVIDER === 'openrouter' ? OPENROUTER_MODEL : GROQ_MODEL;
+    const { messages, model = defaultModel, max_tokens = 10000, temperature = 0.7 } = req.body;
 
     // Valide l'input
     if (!messages || !Array.isArray(messages)) {
