@@ -17,6 +17,20 @@ L'app Ã©crit dans `users/{uid}/projects/*` et `tasks/*` via `lib/services/fire
 Firebase Console â†’ **Authentication** â†’ **Sign-in method** :
 - Activer **Phone**
 
+### Si tu vois `BILLING_NOT_ENABLED` / reCAPTCHA
+Sur Android, Firebase peut exiger une vÃ©rification via **Play Integrity** / **reCAPTCHA Enterprise**.
+SymptÃ´mes typiques dans les logs :
+- `Failed to initialize reCAPTCHA config`
+- `BILLING_NOT_ENABLED`
+
+Correctif (cÃ´tÃ© Google Cloud) :
+- Activer la **facturation** sur le projet Google Cloud liÃ© Ã  Firebase
+- Activer l'API **reCAPTCHA Enterprise**
+- CrÃ©er une **site key Android** (package name + SHA-256) et l'associer Ã  Firebase Auth tÃ©lÃ©phone
+
+En attendant, pour dÃ©bloquer le dÃ©v :
+- Firebase Console â†’ Authentication â†’ Sign-in method â†’ Phone â†’ **Phone numbers for testing**
+
 ### Android
 Firebase Console â†’ Project settings â†’ **Your apps (Android)** :
 - Ajouter les empreintes **SHA-1** et **SHA-256** de ton keystore (debug + release)

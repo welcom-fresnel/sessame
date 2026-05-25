@@ -3,7 +3,10 @@ import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../providers/theme_provider.dart';
+import '../providers/premium_provider.dart';
 import '../services/auth_service.dart';
+import 'premium_screen.dart';
+import 'profile_screen.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -62,12 +65,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
   @override
   Widget build(BuildContext context) {
     final themeProvider = context.watch<ThemeProvider>();
+    final premiumProvider = context.watch<PremiumProvider>();
     final isDark = themeProvider.isDarkMode;
 
     return Scaffold(
       appBar: AppBar(
         title: const Text(
-          'ParamÃ¨tres',
+          'Paramètres',
           style: TextStyle(fontWeight: FontWeight.bold),
         ),
         backgroundColor: Colors.transparent,
@@ -76,8 +80,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
-          // Section Ã€ propos
-          _buildSectionHeader('Ã€ propos'),
+          // Section À propos
+          _buildSectionHeader('À propos'),
           const SizedBox(height: 8),
           _buildSettingTile(
             context,
@@ -89,7 +93,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
           _buildSettingTile(
             context,
             icon: Icons.privacy_tip_rounded,
-            title: 'Politique de confidentialitÃ©',
+            title: 'Politique de confidentialité',
             subtitle: '',
             onTap: null,
           ),
@@ -104,11 +108,27 @@ class _SettingsScreenState extends State<SettingsScreen> {
           // la oÃ¹ je dois mettre le bouton qui ramene sur la version premium
           _buildSettingTile(
             context,
-            icon: Icons.star_rounded,
-            title: 'Passer Ã  Premium',
-            subtitle: 'AccÃ©dez Ã  des fonctionnalitÃ©s exclusives',
+            icon: premiumProvider.isPremium
+                ? Icons.verified_rounded
+                : Icons.star_rounded,
+            title: premiumProvider.isPremium
+                ? 'Premium activé'
+                : 'Passer à Premium',
+            subtitle: premiumProvider.isPremium
+                ? 'Votre accès Premium est actif'
+                : 'Débloquez toutes les fonctionnalités à 650 XAF',
+            trailing: Icon(
+              Icons.arrow_forward_ios_rounded,
+              size: 16,
+              color: premiumProvider.isPremium
+                  ? Colors.greenAccent
+                  : Colors.deepPurpleAccent,
+            ),
             onTap: () {
-              // Logique pour passer Ã  la version premium
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const PremiumScreen()),
+              );
             },
           ),
           if (_authService.currentUser != null) ...[
@@ -117,8 +137,20 @@ class _SettingsScreenState extends State<SettingsScreen> {
             const SizedBox(height: 8),
             _buildSettingTile(
               context,
+              icon: Icons.manage_accounts_rounded,
+              title: 'Compléter le profil',
+              subtitle: 'Nom, prénom, année, mot de passe',
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const ProfileScreen()),
+                );
+              },
+            ),
+            _buildSettingTile(
+              context,
               icon: Icons.logout_rounded,
-              title: 'Se dÃ©connecter',
+              title: 'Se déconnecter',
               subtitle: _authService.currentUser?.phoneNumber ?? '',
               onTap: () async {
                 await _authService.signOut();

@@ -8,6 +8,7 @@ import 'services/database_factory_initializer.dart';
 import 'providers/project_provider.dart';
 import 'providers/conversation_provider.dart';
 import 'providers/theme_provider.dart';
+import 'providers/premium_provider.dart';
 import 'screens/splash_screen.dart'; // Importation du SplashScreen
 import 'screens/auth_screen.dart'; // Importation de l'AuthScreen
 
@@ -35,6 +36,9 @@ class MyApp extends StatelessWidget {
           create: (context) => ThemeProvider(),
         ),
         ChangeNotifierProvider(
+          create: (context) => PremiumProvider(),
+        ),
+        ChangeNotifierProvider(
           create: (context) {
             final provider = ProjectProvider();
             // Fire and forget initialization (don't block UI)
@@ -58,7 +62,7 @@ class MyApp extends StatelessWidget {
       child: Consumer<ThemeProvider>(
         builder: (context, themeProvider, child) {
           return MaterialApp(
-            title: 'Sessame - Suivi de Projets',
+            title: 'Sesame - Suivi de Projets',
             debugShowCheckedModeBanner: false,
             navigatorObservers: [FirebaseAnalyticsObserver(analytics: FirebaseAnalytics.instance)],
             themeMode: themeProvider.themeMode,

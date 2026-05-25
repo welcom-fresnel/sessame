@@ -295,6 +295,51 @@ app.get('/health', (req, res) => {
   res.json({ status: 'ok', message: 'Server is running' });
 });
 
+app.get('/api/ads/home-summary', async (req, res) => {
+  const fallbackAd = {
+    id: 'premium-productivity',
+    title: 'Passe au niveau supérieur',
+    message: 'Débloque les statistiques avancées, les exports et les modèles Premium.',
+    ctaLabel: 'Voir Premium',
+    ctaUrl: 'sesame://premium',
+    accentColorHex: '#FFD740',
+    active: true,
+  };
+
+  try {
+    const db = getFirestoreDb();
+    if (!db) return res.json({ ad: fallbackAd, source: 'fallback' });
+
+    const snap = await db
+      .collection('ads')
+      .where('placement', '==', 'home_summary')
+      .where('active', '==', true)
+      .orderBy('priority', 'desc')
+      .limit(1)
+      .get();
+
+    if (snap.empty) return res.json({ ad: fallbackAd, source: 'fallback' });
+
+    const doc = snap.docs[0];
+    const data = doc.data();
+    res.json({
+      ad: {
+        id: doc.id,
+        title: data.title || fallbackAd.title,
+        message: data.message || fallbackAd.message,
+        ctaLabel: data.ctaLabel || fallbackAd.ctaLabel,
+        ctaUrl: data.ctaUrl || fallbackAd.ctaUrl,
+        accentColorHex: data.accentColorHex || fallbackAd.accentColorHex,
+        active: data.active === true,
+      },
+      source: 'firestore',
+    });
+  } catch (error) {
+    console.error('Ads endpoint error:', error.message);
+    res.json({ ad: fallbackAd, source: 'fallback_error' });
+  }
+});
+
 // Debug: lists Gemini models visible to the current GEMINI_API_KEY.
 app.get('/api/gemini/models', async (req, res) => {
   try {

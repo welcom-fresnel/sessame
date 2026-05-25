@@ -6,6 +6,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:path/path.dart' as path;
 import '../models/project.dart';
+import '../providers/premium_provider.dart';
 import '../providers/project_provider.dart';
 
 class AddProjectScreen extends StatefulWidget {
@@ -39,6 +40,57 @@ class _AddProjectScreenState extends State<AddProjectScreen> {
     'Loisirs',
     'Famille',
     'Autre',
+  ];
+
+  static const List<Map<String, Object>> _premiumTemplates = [
+    {
+      'name': 'Business',
+      'title': 'Lancer une nouvelle offre',
+      'category': 'Travail',
+      'days': 45,
+      'todos': [
+        'Définir le problème client',
+        'Valider le prix',
+        'Préparer une page de présentation',
+        'Trouver 10 premiers prospects',
+      ],
+    },
+    {
+      'name': 'Études',
+      'title': 'Réussir mon objectif académique',
+      'category': 'Études',
+      'days': 30,
+      'todos': [
+        'Lister les chapitres à réviser',
+        'Planifier les séances de travail',
+        'Faire des exercices pratiques',
+        'Préparer une simulation finale',
+      ],
+    },
+    {
+      'name': 'Application mobile',
+      'title': 'Créer mon application mobile',
+      'category': 'Travail',
+      'days': 60,
+      'todos': [
+        'Définir les écrans principaux',
+        'Créer le prototype',
+        'Développer les fonctionnalités clés',
+        'Tester sur téléphone',
+      ],
+    },
+    {
+      'name': 'Marketing',
+      'title': 'Campagne de visibilité',
+      'category': 'Travail',
+      'days': 21,
+      'todos': [
+        'Définir la cible',
+        'Préparer le calendrier de contenu',
+        'Créer les visuels',
+        'Mesurer les résultats',
+      ],
+    },
   ];
 
   bool get isEditing => widget.project != null;
@@ -166,6 +218,7 @@ class _AddProjectScreenState extends State<AddProjectScreen> {
 
     try {
       final projectProvider = context.read<ProjectProvider>();
+      final premiumProvider = context.read<PremiumProvider>();
       final description = _composeDescription();
 
       if (isEditing) {
@@ -179,6 +232,11 @@ class _AddProjectScreenState extends State<AddProjectScreen> {
         );
         await projectProvider.updateProject(updatedProject);
       } else {
+        if (!premiumProvider.isPremium && projectProvider.projects.length >= 3) {
+          _showPremiumLimitDialog();
+          return;
+        }
+
         final newProject = Project(
           id: const Uuid().v4(),
           title: _titleController.text.trim(),
@@ -203,6 +261,41 @@ class _AddProjectScreenState extends State<AddProjectScreen> {
     }
   }
 
+  void _showPremiumLimitDialog() {
+  showDialog<void>(
+    context: context,
+    builder: (context) => AlertDialog(
+      backgroundColor: const Color(0xFF1A1A1A),
+      title: const Text(
+        'Limite gratuite atteinte',
+        style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+      ),
+      content: const Text(
+        'La version gratuite permet de créer 3 projets. Passez à Premium pour créer des projets illimités.',
+        style: TextStyle(color: Colors.white70),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('Compris'),
+        ),
+      ],
+    ),
+  );
+}
+
+void _applyTemplate(Map<String, Object> template) {
+  final todos = (template['todos'] as List).cast<String>();
+  setState(() {
+    _titleController.text = template['title'] as String;
+    _selectedCategory = template['category'] as String;
+    _selectedDeadline = DateTime.now().add(Duration(days: template['days'] as int));
+    _descriptionController.text = 'Projet créé à partir du modèle ${template['name']}.';
+    _descriptionTodos
+      ..clear()
+      ..addAll(todos);
+  });
+}
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -240,6 +333,10 @@ class _AddProjectScreenState extends State<AddProjectScreen> {
             children: [
               _buildHeroHeader(),
               const SizedBox(height: 24),
+              if (!isEditing) ...[
+                _buildTemplateSection(),
+                const SizedBox(height: 24),
+              ],
               _buildSectionTitle('TITRE DU PROJET'),
               const SizedBox(height: 12),
               _buildTextField(
@@ -523,6 +620,93 @@ class _AddProjectScreenState extends State<AddProjectScreen> {
       ),
     );
   }
+
+  Widget _buildTemplateSection() {
+  final isPremium = context.watch<PremiumProvider>().isPremium;
+
+  return Column(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      Row(
+        children: [
+          _buildSectionTitle('MODÈLES PREMIUM'),
+          const SizedBox(width: 8),
+          const Icon(
+            Icons.workspace_premium_rounded,
+            color: Colors.amberAccent,
+            size: 16,
+          ),
+        ],
+      ),
+      const SizedBox(height: 12),
+      SizedBox(
+        height: 104,
+        child: ListView.separated(
+          scrollDirection: Axis.horizontal,
+          itemCount: _premiumTemplates.length,
+          separatorBuilder: (_, __) => const SizedBox(width: 12),
+          itemBuilder: (context, index) {
+            final template = _premiumTemplates[index];
+
+            return GestureDetector(
+              onTap: isPremium
+                  ? () => _applyTemplate(template)
+                  : () => ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text(
+                            'Les modèles de projets sont réservés aux utilisateurs Premium.',
+                          ),
+                        ),
+                      ),
+              child: Container(
+                width: 180,
+                padding: const EdgeInsets.all(14),
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: 0.05),
+                  borderRadius: BorderRadius.circular(18),
+                  border: Border.all(
+                    color: isPremium
+                        ? Colors.amberAccent.withValues(alpha: 0.35)
+                        : Colors.white.withValues(alpha: 0.08),
+                  ),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Icon(
+                      isPremium
+                          ? Icons.auto_awesome_rounded
+                          : Icons.lock_rounded,
+                      color: isPremium ? Colors.amberAccent : Colors.white38,
+                      size: 20,
+                    ),
+                    const Spacer(),
+                    Text(
+                      template['name'] as String,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    Text(
+                      '${template['days']} jours',
+                      style: TextStyle(
+                        color: Colors.white.withValues(alpha: 0.55),
+                        fontSize: 12,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            );
+          },
+        ),
+      ),
+    ],
+  );
+}
 
   Widget _buildTag(String label, {required IconData icon}) {
     return Container(
@@ -875,7 +1059,7 @@ class _DescriptionEditorScreenState extends State<_DescriptionEditorScreen> {
               maxLines: 10,
               style: const TextStyle(color: Colors.white, fontSize: 15),
               decoration: InputDecoration(
-                hintText: 'DÃ©cris ton objectif en dÃ©tail...',
+                hintText: 'Décris ton objectif en détail...',
                 hintStyle: TextStyle(color: Colors.white.withValues(alpha: 0.35)),
                 border: InputBorder.none,
               ),
@@ -934,7 +1118,7 @@ class _DescriptionEditorScreenState extends State<_DescriptionEditorScreen> {
           const SizedBox(height: 12),
           if (_todos.isEmpty)
             Text(
-              'Ajoute des points clés pour structurer ton projet.',
+              'Ajoute des points clés pour stru.....',
               style: TextStyle(color: Colors.white.withValues(alpha: 0.45)),
             ),
           ..._todos.asMap().entries.map((entry) {

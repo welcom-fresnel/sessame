@@ -38,7 +38,7 @@ class ProjectProvider extends ChangeNotifier {
   // Filter projects
   List<Project> get activeProjects => _projects.where((p) => p.status == 'en_cours').toList();
 
-  List<Project> get completedProjects => _projects.where((p) => p.status == 'terminÃ©').toList();
+  List<Project> get completedProjects => _projects.where((p) => p.status == 'terminé').toList();
 
   List<Project> get overdueProjects =>
       _projects.where((p) => p.isOverdue && p.status == 'en_cours').toList();
@@ -136,7 +136,12 @@ class ProjectProvider extends ChangeNotifier {
       } else {
         await _dbService.insertProject(project);
       }
-      await _notificationService.scheduleProjectNotification(project);
+      try {
+        await _notificationService.scheduleProjectNotification(project);
+      } catch (e) {
+        // ignore: avoid_print
+        print('Project notification scheduling failed: $e');
+      }
       await loadProjects();
     } catch (e) {
       // ignore: avoid_print
@@ -157,7 +162,12 @@ class ProjectProvider extends ChangeNotifier {
       }
 
       if (project.status == 'en_cours') {
-        await _notificationService.scheduleProjectNotification(updatedProject);
+        try {
+          await _notificationService.scheduleProjectNotification(updatedProject);
+        } catch (e) {
+          // ignore: avoid_print
+          print('Project notification scheduling failed: $e');
+        }
       }
 
       await loadProjects();
@@ -326,15 +336,15 @@ class ProjectProvider extends ChangeNotifier {
       }
       int total = _projects.length;
       int enCours = _projects.where((p) => p.status == 'en_cours').length;
-      int termines = _projects.where((p) => p.status == 'terminÃ©').length;
-      int abandonnes = _projects.where((p) => p.status == 'abandonnÃ©').length;
+      int termines = _projects.where((p) => p.status == 'terminé').length;
+      int abandonnes = _projects.where((p) => p.status == 'abandonné').length;
       int enRetard = _projects.where((p) => p.isOverdue).length;
 
       return {
         'total': total,
         'en_cours': enCours,
-        'terminÃ©s': termines,
-        'abandonnÃ©s': abandonnes,
+        'terminés': termines,
+        'abandonnés': abandonnes,
         'en_retard': enRetard,
       };
     }

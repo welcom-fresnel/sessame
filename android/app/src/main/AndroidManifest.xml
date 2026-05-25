@@ -14,7 +14,7 @@
     <uses-permission android:name="android.permission.CAMERA" />
     
     <application
-        android:label="sessame"
+        android:label="Sesame"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
         <activity

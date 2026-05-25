@@ -4,6 +4,13 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../models/project.dart';
 import '../models/task.dart';
 
+class PremiumAIAdviceStep {
+  final String title;
+  final String description;
+
+  const PremiumAIAdviceStep({required this.title, required this.description});
+}
+
 class AIService {
   static final AIService _instance = AIService._internal();
   factory AIService() => _instance;
@@ -134,6 +141,104 @@ Réponds UNIQUEMENT avec le conseil, sans introduction.
       print('Erreur IA getProjectAdvice: $e');
       return "Je suis là pour t'aider ! Lance-moi à nouveau pour des conseils. 🚀";
     }
+  }
+
+  Future<List<PremiumAIAdviceStep>> getPremiumProjectAdviceSteps({
+    required Project project,
+    required List<Task> tasks,
+  }) async {
+    try {
+      final completedTasks = tasks.where((t) => t.isCompleted).length;
+      final totalTasks = tasks.length;
+      final progressPercent = (project.progress * 100).toInt();
+
+      final prompt =
+          """
+Tu es un coach projet premium très concret.
+
+Analyse ce projet et propose exactement 5 étapes détaillées pour aider l'utilisateur à avancer sans blocage.
+
+📋 Projet : "${project.title}"
+📝 Description : ${project.description}
+📊 Progression : $progressPercent%
+⏰ Jours restants : ${project.daysRemaining} jour${project.daysRemaining.abs() > 1 ? 's' : ''}
+${project.isOverdue ? '⚠️ EN RETARD' : ''}
+✅ Tâches complétées : $completedTasks sur $totalTasks
+
+Règles :
+- Chaque titre doit être court et commencer par un verbe d'action
+- Chaque détail doit expliquer précisément quoi faire, dans quel ordre, et quel résultat obtenir
+- Langue : français naturel
+- Pas d'introduction, pas de conclusion
+
+Format strict obligatoire :
+TITRE: Premier titre
+DETAIL: Description précise de l'action.
+---
+TITRE: Deuxième titre
+DETAIL: Description précise de l'action.
+---
+""";
+
+      final response = await _callOpenRouterWithMessages(
+        [
+          {"role": "user", "content": prompt},
+        ],
+        maxTokens: 1200,
+        temperature: 0.65,
+      );
+
+      final steps = _parsePremiumSteps(response);
+      if (steps.isNotEmpty) return steps.take(5).toList();
+
+      return [
+        const PremiumAIAdviceStep(
+          title: 'Identifier la priorité immédiate',
+          description:
+              'Choisis l’action qui fera le plus avancer le projet aujourd’hui. Note ce qui doit être terminé, fixe un résultat clair, puis commence uniquement par cette action avant de passer au reste.',
+        ),
+      ];
+    } catch (e) {
+      print('Erreur IA getPremiumProjectAdviceSteps: $e');
+      return [
+        const PremiumAIAdviceStep(
+          title: 'Reprendre avec une action simple',
+          description:
+              'Commence par relire l’objectif du projet, choisis une petite tâche faisable maintenant, puis termine-la avant d’en ajouter une autre. Cela permet de relancer l’avancement sans pression.',
+        ),
+      ];
+    }
+  }
+
+  List<PremiumAIAdviceStep> _parsePremiumSteps(String response) {
+    final blocks = response.split('---');
+    final steps = <PremiumAIAdviceStep>[];
+
+    for (final block in blocks) {
+      final lines = block
+          .split('\n')
+          .map((line) => line.trim())
+          .where((line) => line.isNotEmpty)
+          .toList();
+      String? title;
+      String? detail;
+
+      for (final line in lines) {
+        if (line.toUpperCase().startsWith('TITRE:')) {
+          title = line.substring(6).trim();
+        } else if (line.toUpperCase().startsWith('DETAIL:')) {
+          detail = line.substring(7).trim();
+        } else if (detail != null) {
+          detail = '$detail ${line.trim()}';
+        }
+      }
+
+      if (title != null && title.isNotEmpty && detail != null && detail.isNotEmpty) {
+        steps.add(PremiumAIAdviceStep(title: title, description: detail));
+      }
+    }
+
+    return steps;
   }
 
   /// Suggère des tâches intelligentes basées sur le titre et la description du projet

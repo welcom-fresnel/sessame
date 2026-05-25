@@ -20,6 +20,18 @@ class NotificationService {
       // Initialize timezone
       tz.initializeTimeZones();
 
+      const AndroidInitializationSettings androidSettings =
+          AndroidInitializationSettings('ic_notification');
+      const DarwinInitializationSettings iosSettings =
+          DarwinInitializationSettings();
+      const InitializationSettings initializationSettings =
+          InitializationSettings(android: androidSettings, iOS: iosSettings);
+
+      await _notifications.initialize(
+        settings: initializationSettings,
+        onDidReceiveNotificationResponse: _onNotificationTapped,
+      );
+
       // Créer le canal de notification Android (important!)
       await _createNotificationChannel();
 
@@ -161,6 +173,7 @@ class NotificationService {
         'Rappels de projets',
         channelDescription:
             'Notifications pour vous rappeler de faire le point sur vos projets',
+        icon: 'ic_notification',
         importance: Importance.high,
         priority: Priority.high,
         enableVibration: true,
@@ -208,7 +221,6 @@ class NotificationService {
       print('✅ Notification programmée pour le ${scheduledTime.toString()}');
     } catch (e) {
       print('❌ Erreur lors de la programmation de la notification: $e');
-      rethrow;
     }
   }
 
@@ -225,6 +237,7 @@ class NotificationService {
           'project_reminders',
           'Rappels de projets',
           channelDescription: 'Notifications pour vos projets',
+          icon: 'ic_notification',
           importance: Importance.high,
           priority: Priority.high,
         );

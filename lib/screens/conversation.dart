@@ -192,7 +192,7 @@ class _ConversationScreenState extends State<ConversationScreen> {
           backgroundColor: const Color(0xFF0F0F0F),
           appBar: AppBar(
             title: Text(
-              currentConv?.title ?? 'Conversation avec sessame',
+              currentConv?.title ?? 'Conversation avec Sesame',
               style: const TextStyle(
                 color: Colors.white,
                 fontWeight: FontWeight.bold,
@@ -289,7 +289,7 @@ class _ConversationScreenState extends State<ConversationScreen> {
                             ),
                             const SizedBox(width: 10),
                             Text(
-                              'Sessame réfléchit...',
+                              'Sesame réfléchit...',
                               style: TextStyle(
                                 color: Colors.grey,
                                 fontSize: 13,

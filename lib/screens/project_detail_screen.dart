@@ -5,6 +5,7 @@ import 'package:animate_do/animate_do.dart';
 import '../models/project.dart';
 import '../models/task.dart';
 import '../providers/project_provider.dart';
+import '../providers/premium_provider.dart';
 import '../services/ai_service.dart';
 import 'add_project_screen.dart';
 
@@ -24,6 +25,8 @@ class _ProjectDetailScreenState extends State<ProjectDetailScreen> {
   final _taskInputFocusNode = FocusNode();
 
   String? _aiAdvice;
+  List<PremiumAIAdviceStep> _premiumAdviceSteps = [];
+  final Set<int> _expandedPremiumSteps = {};
   bool _isLoadingAdvice = false;
   bool _isGeneratingSuggestions = false;
 
@@ -91,10 +94,29 @@ class _ProjectDetailScreenState extends State<ProjectDetailScreen> {
     setState(() {
       _isLoadingAdvice = true;
       _aiAdvice = null;
+      _premiumAdviceSteps = [];
+      _expandedPremiumSteps.clear();
     });
 
     try {
       final tasks = context.read<ProjectProvider>().currentProjectTasks;
+      final isPremium = context.read<PremiumProvider>().isPremium;
+
+      if (isPremium) {
+        final steps = await _aiService.getPremiumProjectAdviceSteps(
+          project: widget.project,
+          tasks: tasks,
+        );
+
+        if (mounted) {
+          setState(() {
+            _premiumAdviceSteps = steps;
+            _isLoadingAdvice = false;
+          });
+        }
+        return;
+      }
+
       final advice = await _aiService.getProjectAdvice(
         project: widget.project,
         tasks: tasks,
@@ -111,6 +133,7 @@ class _ProjectDetailScreenState extends State<ProjectDetailScreen> {
         setState(() {
           _aiAdvice =
               "Je ne peux pas te conseiller pour le moment. Réessaye ! 🤖";
+          _premiumAdviceSteps = [];
           _isLoadingAdvice = false;
         });
       }
@@ -486,7 +509,7 @@ class _ProjectDetailScreenState extends State<ProjectDetailScreen> {
                 ),
 
                 // Coach IA Section
-                if (_aiAdvice != null || _isLoadingAdvice)
+                if (_aiAdvice != null || _premiumAdviceSteps.isNotEmpty || _isLoadingAdvice)
                   FadeInUp(
                     delay: const Duration(milliseconds: 200),
                     child: Container(
@@ -544,8 +567,10 @@ class _ProjectDetailScreenState extends State<ProjectDetailScreen> {
                                       ),
                                     ),
                                     const SizedBox(width: 12),
-                                    const Text(
-                                      'Coach IA',
+                                    Text(
+                                      _premiumAdviceSteps.isNotEmpty
+                                          ? 'Coach IA Premium'
+                                          : 'Coach IA',
                                       style: TextStyle(
                                         color: Colors.white,
                                         fontWeight: FontWeight.bold,
@@ -555,28 +580,31 @@ class _ProjectDetailScreenState extends State<ProjectDetailScreen> {
                                   ],
                                 ),
                                 const SizedBox(height: 12),
-                                ConstrainedBox(
-                                  constraints: const BoxConstraints(
-                                    maxHeight: 120,
-                                  ),
-                                  child: SingleChildScrollView(
-                                    child: Text(
-                                      _aiAdvice ?? '',
-                                      style: const TextStyle(
-                                        color: Colors.white,
-                                        fontSize: 14,
-                                        fontStyle: FontStyle.italic,
-                                        height: 1.5,
+                                if (_premiumAdviceSteps.isNotEmpty)
+                                  _buildPremiumAdviceSteps()
+                                else
+                                  ConstrainedBox(
+                                    constraints: const BoxConstraints(
+                                      maxHeight: 120,
+                                    ),
+                                    child: SingleChildScrollView(
+                                      child: Text(
+                                        _aiAdvice ?? '',
+                                        style: const TextStyle(
+                                          color: Colors.white,
+                                          fontSize: 14,
+                                          fontStyle: FontStyle.italic,
+                                          height: 1.5,
+                                        ),
                                       ),
                                     ),
                                   ),
-                                ),
                               ],
                             ),
                     ),
                   ),
 
-                if (_aiAdvice != null || _isLoadingAdvice)
+                if (_aiAdvice != null || _premiumAdviceSteps.isNotEmpty || _isLoadingAdvice)
                   const SizedBox(height: 12),
 
                 // Section Tâches
@@ -697,6 +725,106 @@ class _ProjectDetailScreenState extends State<ProjectDetailScreen> {
           );
         },
       ),
+    );
+  }
+
+  Widget _buildPremiumAdviceSteps() {
+    return Column(
+      children: List.generate(_premiumAdviceSteps.length, (index) {
+        final step = _premiumAdviceSteps[index];
+        final isExpanded = _expandedPremiumSteps.contains(index);
+
+        return AnimatedContainer(
+          duration: const Duration(milliseconds: 250),
+          margin: const EdgeInsets.only(bottom: 10),
+          decoration: BoxDecoration(
+            color: Colors.white.withValues(alpha: 0.05),
+            borderRadius: BorderRadius.circular(18),
+            border: Border.all(
+              color: isExpanded
+                  ? Colors.amberAccent.withValues(alpha: 0.45)
+                  : Colors.white.withValues(alpha: 0.08),
+            ),
+          ),
+          child: Column(
+            children: [
+              InkWell(
+                borderRadius: BorderRadius.circular(18),
+                onTap: () {
+                  setState(() {
+                    if (isExpanded) {
+                      _expandedPremiumSteps.remove(index);
+                    } else {
+                      _expandedPremiumSteps.add(index);
+                    }
+                  });
+                },
+                child: Padding(
+                  padding: const EdgeInsets.all(14),
+                  child: Row(
+                    children: [
+                      Container(
+                        width: 28,
+                        height: 28,
+                        alignment: Alignment.center,
+                        decoration: BoxDecoration(
+                          color: Colors.amberAccent.withValues(alpha: 0.18),
+                          shape: BoxShape.circle,
+                        ),
+                        child: Text(
+                          '${index + 1}',
+                          style: const TextStyle(
+                            color: Colors.amberAccent,
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Text(
+                          step.title,
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 14,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ),
+                      AnimatedRotation(
+                        turns: isExpanded ? 0.5 : 0,
+                        duration: const Duration(milliseconds: 250),
+                        child: const Icon(
+                          Icons.keyboard_arrow_down_rounded,
+                          color: Colors.amberAccent,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              AnimatedCrossFade(
+                firstChild: const SizedBox.shrink(),
+                secondChild: Padding(
+                  padding: const EdgeInsets.fromLTRB(14, 0, 14, 14),
+                  child: Text(
+                    step.description,
+                    style: TextStyle(
+                      color: Colors.white.withValues(alpha: 0.78),
+                      fontSize: 13,
+                      height: 1.45,
+                    ),
+                  ),
+                ),
+                crossFadeState: isExpanded
+                    ? CrossFadeState.showSecond
+                    : CrossFadeState.showFirst,
+                duration: const Duration(milliseconds: 250),
+              ),
+            ],
+          ),
+        );
+      }),
     );
   }
 

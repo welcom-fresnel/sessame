@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:animate_do/animate_do.dart';
+import '../models/home_ad.dart';
 import '../providers/project_provider.dart';
+import '../services/ad_service.dart';
 import '../widgets/project_card.dart';
 import 'add_project_screen.dart';
 import 'statistics_screen.dart';
@@ -19,6 +21,7 @@ class _HomeScreenState extends State<HomeScreen> {
   String _selectedFilter = 'tous'; // tous, en_cours, terminé
   final TextEditingController _searchController = TextEditingController();
   String _searchQuery = '';
+  HomeAd? _homeAd;
 
   @override
   void initState() {
@@ -30,7 +33,14 @@ class _HomeScreenState extends State<HomeScreen> {
     });
     WidgetsBinding.instance.addPostFrameCallback((_) {
       context.read<ProjectProvider>().loadProjects();
+      _loadHomeAd();
     });
+  }
+
+  Future<void> _loadHomeAd() async {
+    final ad = await AdService().getHomeSummaryAd();
+    if (!mounted) return;
+    setState(() => _homeAd = ad);
   }
 
   @override
@@ -140,7 +150,7 @@ class _HomeScreenState extends State<HomeScreen> {
           backgroundColor: Colors.deepPurpleAccent,
           icon: const Icon(Icons.add_rounded, color: Colors.white),
           label: const Text(
-            'Nouveau Projet',
+            'New',
             style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
           ),
           shape: RoundedRectangleBorder(
@@ -289,6 +299,8 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget _buildSummaryCard(ProjectProvider provider) {
     final activeCount = provider.activeProjects.length;
     final overdueCount = provider.overdueProjects.length;
+    final ad = _homeAd;
+    final showAd = ad != null;
 
     return Container(
       padding: const EdgeInsets.all(20),
@@ -314,7 +326,11 @@ class _HomeScreenState extends State<HomeScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  overdueCount > 0 ? 'Attention !' : 'Tout va bien !',
+                  showAd
+                      ? ad.title
+                      : overdueCount > 0
+                          ? 'Attention !'
+                          : 'Tout va bien !',
                   style: const TextStyle(
                     color: Colors.white,
                     fontSize: 18,
@@ -323,19 +339,39 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  overdueCount > 0
-                      ? 'Tu as $overdueCount projets en retard ⚠️'
-                      : 'Tu as $activeCount projets en cours activement.',
+                  showAd
+                      ? ad.message
+                      : overdueCount > 0
+                          ? 'Tu as $overdueCount projets en retard ⚠️'
+                          : 'Tu as $activeCount projets en cours activement.',
                   style: TextStyle(
                     color: Colors.white.withValues(alpha: 0.8),
                     fontSize: 13,
                   ),
                 ),
+                if (showAd) ...[
+                  const SizedBox(height: 10),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withValues(alpha: 0.16),
+                      borderRadius: BorderRadius.circular(999),
+                    ),
+                    child: Text(
+                      'Sponsorisé • ${ad.ctaLabel}',
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 11,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                ],
               ],
             ),
           ),
-          const Icon(
-            Icons.rocket_launch_rounded,
+          Icon(
+            showAd ? Icons.campaign_rounded : Icons.rocket_launch_rounded,
             color: Colors.white,
             size: 40,
           ),

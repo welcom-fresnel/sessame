@@ -14,11 +14,11 @@
       },
       "oauth_client": [
         {
-          "client_id": "401712409524-fq8s6mbq0g1c90ovoq0smia18l8ltpcn.apps.googleusercontent.com",
+          "client_id": "401712409524-kdti9d911c36gh70vepu0h8ce7k4uvfc.apps.googleusercontent.com",
           "client_type": 1,
           "android_info": {
             "package_name": "com.example.sessame",
-            "certificate_hash": "67f94e4592f449e9c1cf6f16036b08452c5c85f0"
+            "certificate_hash": "b9ae1fd637ae472ac8ef7a23947e2134812cb6bd"
           }
         },
         {
