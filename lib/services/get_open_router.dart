@@ -1,7 +1,7 @@
 import 'dart:async';
 import 'dart:io';
 
-import 'package:sessame/services/ai_service.dart';
+import 'package:asala/services/ai_service.dart';
 
 import '../models/message.dart';
 import '../models/project.dart';

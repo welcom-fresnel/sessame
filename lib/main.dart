@@ -1,4 +1,8 @@
+import 'dart:convert';
+
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
 import 'package:provider/provider.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:firebase_core/firebase_core.dart';
@@ -15,12 +19,43 @@ import 'screens/auth_screen.dart'; // Importation de l'AuthScreen
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   try {
-    await Firebase.initializeApp();
-    await FirebaseAnalytics.instance.setAnalyticsCollectionEnabled(true);
+    if (kIsWeb) {
+      try {
+        final uri = Uri.base.resolve('firebase_config.json');
+        final resp = await http.get(uri);
+        if (resp.statusCode == 200) {
+          final cfg = json.decode(resp.body) as Map<String, dynamic>;
+          final options = FirebaseOptions(
+            apiKey: (cfg['apiKey'] ?? '').toString(),
+            authDomain: (cfg['authDomain'] ?? '').toString(),
+            projectId: (cfg['projectId'] ?? '').toString(),
+            storageBucket: (cfg['storageBucket'] ?? '').toString(),
+            messagingSenderId: (cfg['messagingSenderId'] ?? '').toString(),
+            appId: (cfg['appId'] ?? '').toString(),
+            measurementId: (cfg['measurementId'] ?? '').toString(),
+          );
+          await Firebase.initializeApp(options: options);
+        } else {
+          // Fallback to default initialize (may fail if no native config)
+          await Firebase.initializeApp();
+        }
+      } catch (e) {
+        print('⚠️ Firebase web init failed: $e');
+      }
+    } else {
+      await Firebase.initializeApp();
+    }
+
+    try {
+      await FirebaseAnalytics.instance.setAnalyticsCollectionEnabled(true);
+    } catch (e) {
+      print('⚠️ Firebase Analytics init skipped: $e');
+    }
   } catch (e) {
     // If Firebase isn't configured for a platform, keep the app running.
     print('⚠️ Firebase init skipped: $e');
   }
+
   await initializeDatabaseFactory();
   runApp(const MyApp());
 }
@@ -62,7 +97,7 @@ class MyApp extends StatelessWidget {
       child: Consumer<ThemeProvider>(
         builder: (context, themeProvider, child) {
           return MaterialApp(
-            title: 'Sesame - Suivi de Projets',
+            title: 'Asala - Suivi de Projets',
             debugShowCheckedModeBanner: false,
             navigatorObservers: [FirebaseAnalyticsObserver(analytics: FirebaseAnalytics.instance)],
             themeMode: themeProvider.themeMode,

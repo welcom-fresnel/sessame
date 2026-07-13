@@ -1,0 +1,10 @@
+services:
+  - type: web
+    name: asala-web
+    env: docker
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+    autoDeploy: true
+    envVars:
+      - key: PORT
+        value: 10000

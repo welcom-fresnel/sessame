@@ -17,7 +17,7 @@ class AIService {
   AIService._internal();
 
   /// À remplacer par ton URL après le déploiement
-  static const String _backendUrl = 'https://sessame.onrender.com'; // Replace with your Railway URL
+  static const String _backendUrl = 'https://sessame-kxqo.onrender.com'; // Replace with your Railway URL
   static const String _model = 'llama-3.3-70versatitle';
 
 
