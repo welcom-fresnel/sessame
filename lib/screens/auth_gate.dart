@@ -51,11 +51,19 @@ class _AuthGateState extends State<AuthGate> {
     try {
       final uid = _authService.currentUser!.uid;
       final profile = await _profileService.getProfile(uid);
-      final hasBasics =
+
+      // Determine if the signed-in provider is Google. For Google users we allow
+      // skipping phone verification at signup and still grant app access.
+      final providerData = _authService.currentUser?.providerData ?? [];
+      final isGoogle = providerData.any((p) => p.providerId == 'google.com');
+
+      final hasBasics = isGoogle || (
           (profile?['firstName'] ?? '').toString().trim().isNotEmpty &&
           (profile?['lastName'] ?? '').toString().trim().isNotEmpty &&
           (profile?['birthYear'] is num) &&
-          (profile?['phoneNumber'] ?? '').toString().trim().isNotEmpty;
+          (profile?['phoneNumber'] ?? '').toString().trim().isNotEmpty
+      );
+
       if (!mounted) return;
       setState(() {
         _profileReady = hasBasics;

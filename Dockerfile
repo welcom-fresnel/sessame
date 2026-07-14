@@ -13,3 +13,7 @@ COPY --from=builder /app/build/web /usr/share/nginx/html
 
 EXPOSE 10000
 CMD ["/bin/sh", "-c", "envsubst '${PORT:-10000}' < /etc/nginx/templates/default.conf.template > /etc/nginx/conf.d/default.conf && nginx -g 'daemon off;'" ]
+cd /home/silence/Asala/sessame
+git add Dockerfile nginx.conf.template
+git commit -m "Fix Render nginx port config"
+git push

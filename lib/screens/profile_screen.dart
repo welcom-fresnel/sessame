@@ -15,6 +15,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   final _firstNameController = TextEditingController();
   final _lastNameController = TextEditingController();
   final _birthYearController = TextEditingController();
+  final _phoneController = TextEditingController();
 
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
@@ -37,6 +38,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     _firstNameController.dispose();
     _lastNameController.dispose();
     _birthYearController.dispose();
+    _phoneController.dispose();
     _emailController.dispose();
     _passwordController.dispose();
     super.dispose();
@@ -58,6 +60,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       _lastNameController.text = (profile?['lastName'] ?? '').toString();
       final birthYear = profile?['birthYear'];
       _birthYearController.text = (birthYear is num) ? birthYear.toInt().toString() : '';
+      _phoneController.text = (profile?['phoneNumber'] ?? '').toString();
       _emailController.text = (user.email ?? '');
     } catch (e) {
       _error = 'Erreur chargement profil: $e';
@@ -73,14 +76,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
     final firstName = _firstNameController.text.trim();
     final lastName = _lastNameController.text.trim();
     final birthYear = int.tryParse(_birthYearController.text.trim());
-    final phoneNumber = user.phoneNumber ?? '';
+    final phoneNumber = _phoneController.text.trim();
 
     if (firstName.isEmpty || lastName.isEmpty || birthYear == null) {
       setState(() => _error = 'Complète prénom/nom/année de naissance.');
       return;
     }
-    if (phoneNumber.isEmpty) {
-      setState(() => _error = 'Numéro de téléphone manquant sur le compte.');
+    if (phoneNumber.isNotEmpty && !phoneNumber.startsWith('+')) {
+      setState(() => _error = 'Le numéro doit être au format international, ex: +33612345678.');
       return;
     }
 
@@ -96,7 +99,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         firstName: firstName,
         lastName: lastName,
         birthYear: birthYear,
-        phoneNumber: phoneNumber,
+        phoneNumber: phoneNumber.isEmpty ? null : phoneNumber,
         email: user.email,
         displayName: user.displayName,
       );
@@ -168,6 +171,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   controller: _birthYearController,
                   keyboardType: TextInputType.number,
                   decoration: const InputDecoration(labelText: 'Année de naissance'),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: _phoneController,
+                  keyboardType: TextInputType.phone,
+                  decoration: const InputDecoration(
+                    labelText: 'Téléphone (optionnel)',
+                    hintText: '+33612345678',
+                  ),
                 ),
                 const SizedBox(height: 16),
                 SizedBox(

@@ -61,7 +61,7 @@ class _HomeScreenState extends State<HomeScreen> {
     const steps = [
       (
         icon: Icons.folder_rounded,
-        title: 'Bienvenue sur Sesame',
+        title: 'Bienvenue sur Asala',
         message:
             'Ici, tu peux organiser tes objectifs sous forme de projets simples à suivre.',
       ),

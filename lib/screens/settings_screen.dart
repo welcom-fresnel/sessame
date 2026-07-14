@@ -139,7 +139,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
               context,
               icon: Icons.manage_accounts_rounded,
               title: 'Compléter le profil',
-              subtitle: 'Nom, prénom, année, mot de passe',
+              subtitle: 'Nom, prénom, année, téléphone',
               onTap: () {
                 Navigator.push(
                   context,

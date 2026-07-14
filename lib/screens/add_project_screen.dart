@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:uuid/uuid.dart';
@@ -145,6 +146,10 @@ class _AddProjectScreenState extends State<AddProjectScreen> {
   }
 
   Future<String?> _saveImageToLocal(File imageFile) async {
+    if (kIsWeb) {
+      return imageFile.path;
+    }
+
     try {
       final appDir = await getApplicationDocumentsDirectory();
       final imagesDir = Directory(path.join(appDir.path, 'project_images'));

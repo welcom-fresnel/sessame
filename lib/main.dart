@@ -6,9 +6,11 @@ import 'package:http/http.dart' as http;
 import 'package:provider/provider.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_analytics/firebase_analytics.dart';
 import 'package:firebase_analytics/observer.dart';
 import 'services/database_factory_initializer.dart';
+import 'services/firebase_web_config.dart';
 import 'providers/project_provider.dart';
 import 'providers/conversation_provider.dart';
 import 'providers/theme_provider.dart';
@@ -25,6 +27,7 @@ void main() async {
         final resp = await http.get(uri);
         if (resp.statusCode == 200) {
           final cfg = json.decode(resp.body) as Map<String, dynamic>;
+          FirebaseWebConfig.googleClientId = cfg['googleClientId']?.toString();
           final options = FirebaseOptions(
             apiKey: (cfg['apiKey'] ?? '').toString(),
             authDomain: (cfg['authDomain'] ?? '').toString(),
@@ -50,6 +53,19 @@ void main() async {
       await FirebaseAnalytics.instance.setAnalyticsCollectionEnabled(true);
     } catch (e) {
       print('⚠️ Firebase Analytics init skipped: $e');
+    }
+
+    // If the app was redirected back from an OAuth redirect (web), try to
+    // resolve the redirect result so the sign-in completes.
+    if (kIsWeb) {
+      try {
+        final result = await FirebaseAuth.instance.getRedirectResult();
+        if (result.user != null) {
+          print('✅ Firebase redirect sign-in completed for ${result.user!.uid}');
+        }
+      } catch (e) {
+        print('⚠️ getRedirectResult failed: $e');
+      }
     }
   } catch (e) {
     // If Firebase isn't configured for a platform, keep the app running.

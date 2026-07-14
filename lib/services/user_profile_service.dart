@@ -19,24 +19,23 @@ class UserProfileService {
     required String firstName,
     required String lastName,
     required int birthYear,
-    required String phoneNumber,
+    String? phoneNumber,
     String? email,
     String? displayName,
   }) async {
-    await _userDoc(uid).set(
-      {
-        'uid': uid,
-        'firstName': firstName,
-        'lastName': lastName,
-        'birthYear': birthYear,
-        'phoneNumber': phoneNumber,
-        if (email != null) 'email': email,
-        if (displayName != null) 'displayName': displayName,
-        'updatedAt': FieldValue.serverTimestamp(),
-        'createdAt': FieldValue.serverTimestamp(),
-      },
-      SetOptions(merge: true),
-    );
+    final data = <String, dynamic>{
+      'uid': uid,
+      'firstName': firstName,
+      'lastName': lastName,
+      'birthYear': birthYear,
+      if (phoneNumber != null && phoneNumber.isNotEmpty) 'phoneNumber': phoneNumber,
+      if (email != null) 'email': email,
+      if (displayName != null) 'displayName': displayName,
+      'updatedAt': FieldValue.serverTimestamp(),
+      'createdAt': FieldValue.serverTimestamp(),
+    };
+
+    await _userDoc(uid).set(data, SetOptions(merge: true));
   }
 }
 

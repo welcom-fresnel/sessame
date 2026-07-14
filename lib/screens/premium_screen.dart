@@ -45,7 +45,7 @@ class _PremiumScreenState extends State<PremiumScreen> {
       backgroundColor: const Color(0xFF0F0F0F),
       appBar: AppBar(
         title: const Text(
-          'Sesame Premium',
+          'Asala Premium',
           style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
         ),
         backgroundColor: Colors.transparent,
@@ -248,7 +248,7 @@ class _PremiumScreenState extends State<PremiumScreen> {
               const SizedBox(width: 14),
               const Expanded(
                 child: Text(
-                  'Débloquez tout le potentiel de Sesame',
+                  'Débloquez tout le potentiel de Asala',
                   style: TextStyle(
                     color: Colors.white,
                     fontSize: 22,

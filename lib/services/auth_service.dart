@@ -1,5 +1,9 @@
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:google_sign_in/google_sign_in.dart';
+
+// Conditional import: on web use google_sign_in_web implementation, otherwise mobile.
+import 'google_sign_in_mobile.dart'
+    if (dart.library.html) 'google_sign_in_web.dart' as platform_google;
 
 class AuthService {
   AuthService({FirebaseAuth? auth}) : _auth = auth ?? FirebaseAuth.instance;
@@ -14,25 +18,11 @@ class AuthService {
 
   Future<UserCredential> signInWithGoogle() async {
     try {
-      final google = GoogleSignIn.instance;
-      await google.initialize();
-
-      final account = await google.authenticate(scopeHint: const ['email', 'profile']);
-      final idToken = account.authentication.idToken;
-      if (idToken == null || idToken.isEmpty) {
-        throw FirebaseAuthException(code: 'missing-id-token', message: 'Google ID token manquant');
-      }
-
-      final authz = await account.authorizationClient.authorizeScopes(const ['email', 'profile']);
-      final accessToken = authz.accessToken;
-      if (accessToken.isEmpty) {
-        throw FirebaseAuthException(code: 'missing-access-token', message: 'Google access token manquant');
-      }
-
-      final credential = GoogleAuthProvider.credential(idToken: idToken, accessToken: accessToken);
-      return _auth.signInWithCredential(credential);
-    } on GoogleSignInException catch (e) {
-      throw FirebaseAuthException(code: 'google-sign-in-failed', message: '${e.code}: ${e.description}');
+      return await platform_google.platformSignInWithGoogle(_auth);
+    } on FirebaseAuthException {
+      rethrow;
+    } catch (e) {
+      throw FirebaseAuthException(code: 'google-sign-in-failed', message: e.toString());
     }
   }
 
@@ -84,4 +74,3 @@ class AuthService {
     return user.linkWithCredential(credential);
   }
 }
-

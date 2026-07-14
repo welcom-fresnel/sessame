@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:fl_chart/fl_chart.dart';
@@ -40,6 +41,15 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
         _formatDate(project.deadline),
         project.isOverdue ? 'Oui' : 'Non',
       ].join(';'));
+    }
+
+    if (kIsWeb) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('L’export CSV est désactivé dans le navigateur. Utilise la version mobile/desktop pour télécharger un fichier.')),
+        );
+      }
+      return;
     }
 
     final directory = await getApplicationDocumentsDirectory();

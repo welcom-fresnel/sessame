@@ -70,9 +70,11 @@ class _AuthScreenState extends State<AuthScreen> with SingleTickerProviderStateM
       setState(() => _error = "AnnÃ©e de naissance invalide.");
       return false;
     }
-    if (phone.isEmpty || !phone.startsWith('+')) {
-      setState(() => _error = 'NumÃ©ro invalide (format: +33612345678).');
-      return false;
+    if (!_googleSignedIn) {
+      if (phone.isEmpty || !phone.startsWith('+')) {
+        setState(() => _error = 'Numéro invalide (format: +33612345678).');
+        return false;
+      }
     }
     return true;
   }
@@ -118,7 +120,7 @@ class _AuthScreenState extends State<AuthScreen> with SingleTickerProviderStateM
         },
       );
     } catch (e) {
-      setState(() => _error = 'Erreur: $e');
+      if (mounted) setState(() => _error = 'Erreur: $e');
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
@@ -190,7 +192,14 @@ class _AuthScreenState extends State<AuthScreen> with SingleTickerProviderStateM
           final firstName = _firstNameController.text.trim();
           final lastName = _lastNameController.text.trim();
           final birthYear = int.parse(_birthYearController.text.trim());
-          final phoneNumber = user.phoneNumber ?? _phoneController.text.trim();
+          String? phoneNumber;
+          if (user.phoneNumber != null && user.phoneNumber!.isNotEmpty) {
+            phoneNumber = user.phoneNumber;
+          } else if (_phoneController.text.trim().isNotEmpty) {
+            phoneNumber = _phoneController.text.trim();
+          } else {
+            phoneNumber = null;
+          }
           await _profileService.upsertProfile(
             uid: user.uid,
             firstName: firstName,
@@ -206,7 +215,7 @@ class _AuthScreenState extends State<AuthScreen> with SingleTickerProviderStateM
     } on FirebaseAuthException catch (e) {
       setState(() => _error = _humanizeFirebaseAuthError(e));
     } catch (e) {
-      setState(() => _error = 'Erreur: $e');
+      if (mounted) setState(() => _error = 'Erreur: $e');
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
@@ -231,13 +240,38 @@ class _AuthScreenState extends State<AuthScreen> with SingleTickerProviderStateM
     try {
       await _auth.signInWithGoogle();
       if (!mounted) return;
-      setState(() {
-        _googleSignedIn = true;
-      });
 
-      // Phone is mandatory: after Google sign-in we still ask for SMS verification and link it.
-      if (_validateForm()) {
-        await _sendCode();
+      final user = FirebaseAuth.instance.currentUser;
+      if (user != null) {
+        // Check if profile already exists and is complete
+        final profile = await _profileService.getProfile(user.uid);
+        final hasCompleteProfile =
+            (profile?['firstName'] ?? '').toString().trim().isNotEmpty &&
+            (profile?['lastName'] ?? '').toString().trim().isNotEmpty &&
+            (profile?['birthYear'] is num) &&
+            (profile?['phoneNumber'] ?? '').toString().trim().isNotEmpty;
+
+        if (hasCompleteProfile) {
+          // Profile complete, AuthGate will take over via authStateChanges
+          if (mounted) setState(() => _isLoading = false);
+          return;
+        }
+
+        // Pre-fill form with Google data
+        final displayName = user.displayName ?? '';
+        final names = displayName.split(' ');
+        if (names.isNotEmpty) {
+          _firstNameController.text = names.first;
+          if (names.length > 1) {
+            _lastNameController.text = names.sublist(1).join(' ');
+          }
+        }
+
+        setState(() {
+          _googleSignedIn = true;
+        });
+
+        // Ask for phone number only; don't auto-send code
       }
     } on FirebaseAuthException catch (e) {
       setState(() => _error = _humanizeFirebaseAuthError(e));
@@ -305,18 +339,26 @@ class _AuthScreenState extends State<AuthScreen> with SingleTickerProviderStateM
                     const SizedBox(height: 10),
                     FadeInUp(
                       delay: const Duration(milliseconds: 200),
-                      child: Text(
-                        _codeSent
-                            ? 'Entre le code reçu par SMS.'
-                            : (_tabController.index == 0
-                                ? 'Renseigne tes infos puis valide ton numéro (obligatoire).'
-                                : 'Connecte-toi avec Google ou ton numéro.'),
-                        style: TextStyle(
-                          color: Colors.white.withValues(alpha: 0.75),
-                          fontSize: 13,
-                          height: 1.3,
-                        ),
-                      ),
+                      child: Builder(builder: (ctx) {
+                        String subtitle;
+                        if (_codeSent) {
+                          subtitle = 'Entre le code reçu par SMS.';
+                        } else if (_tabController.index == 0) {
+                          subtitle = _googleSignedIn
+                              ? 'Renseigne tes infos (téléphone optionnel pour Google).'
+                              : 'Renseigne tes infos puis valide ton numéro (obligatoire).';
+                        } else {
+                          subtitle = 'Connecte-toi avec Google ou ton numéro.';
+                        }
+                        return Text(
+                          subtitle,
+                          style: TextStyle(
+                            color: Colors.white.withValues(alpha: 0.75),
+                            fontSize: 13,
+                            height: 1.3,
+                          ),
+                        );
+                      }),
                     ),
                     if (!_codeSent) ...[
                       const SizedBox(height: 18),
