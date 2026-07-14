@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -145,12 +146,18 @@ class _AddProjectScreenState extends State<AddProjectScreen> {
     }
   }
 
-  Future<String?> _saveImageToLocal(File imageFile) async {
+  Future<String?> _saveImageToLocal(XFile image) async {
     if (kIsWeb) {
-      return imageFile.path;
+      // Un chemin "blob:" du navigateur n'est pas durable et ne peut pas être
+      // affiché avec Image.file. Les octets restent disponibles après le
+      // rechargement de l'application via la base locale.
+      final bytes = await image.readAsBytes();
+      final mimeType = image.mimeType ?? 'image/jpeg';
+      return 'data:$mimeType;base64,${base64Encode(bytes)}';
     }
 
     try {
+      final imageFile = File(image.path);
       final appDir = await getApplicationDocumentsDirectory();
       final imagesDir = Directory(path.join(appDir.path, 'project_images'));
       if (!await imagesDir.exists()) {
@@ -177,7 +184,7 @@ class _AddProjectScreenState extends State<AddProjectScreen> {
       );
 
       if (image != null) {
-        final savedPath = await _saveImageToLocal(File(image.path));
+        final savedPath = await _saveImageToLocal(image);
         if (savedPath != null && mounted) {
           setState(() {
             _imagePath = savedPath;
@@ -203,7 +210,7 @@ class _AddProjectScreenState extends State<AddProjectScreen> {
   }
 
   Future<void> _removeImage() async {
-    if (_imagePath != null) {
+    if (!kIsWeb && _imagePath != null) {
       try {
         final file = File(_imagePath!);
         if (await file.exists()) {
@@ -899,11 +906,10 @@ void _applyTemplate(Map<String, Object> template) {
             children: [
               ClipRRect(
                 borderRadius: BorderRadius.circular(20),
-                child: Image.file(
-                  File(_imagePath!),
+                child: _buildProjectImage(
+                  _imagePath!,
                   width: double.infinity,
                   height: 200,
-                  fit: BoxFit.cover,
                 ),
               ),
               Positioned(
@@ -953,7 +959,58 @@ void _applyTemplate(Map<String, Object> template) {
                 ),
               ],
             ),
-          );
+        );
+  }
+
+  Widget _buildProjectImage(
+    String imagePath, {
+    required double width,
+    required double height,
+  }) {
+    final errorImage = Container(
+      width: width,
+      height: height,
+      color: Colors.grey[800],
+      child: const Center(
+        child: Icon(Icons.broken_image, color: Colors.grey),
+      ),
+    );
+    Widget errorBuilder(BuildContext context, Object error, StackTrace? stackTrace) =>
+        errorImage;
+
+    if (imagePath.startsWith('data:image/')) {
+      final commaIndex = imagePath.indexOf(',');
+      if (commaIndex == -1) return errorImage;
+      try {
+        return Image.memory(
+          base64Decode(imagePath.substring(commaIndex + 1)),
+          width: width,
+          height: height,
+          fit: BoxFit.cover,
+          errorBuilder: errorBuilder,
+        );
+      } on FormatException {
+        return errorImage;
+      }
+    }
+
+    if (kIsWeb) {
+      return Image.network(
+        imagePath,
+        width: width,
+        height: height,
+        fit: BoxFit.cover,
+        errorBuilder: errorBuilder,
+      );
+    }
+
+    return Image.file(
+      File(imagePath),
+      width: width,
+      height: height,
+      fit: BoxFit.cover,
+      errorBuilder: errorBuilder,
+    );
   }
 }
 
@@ -1193,4 +1250,3 @@ class _DescriptionEditorScreenState extends State<_DescriptionEditorScreen> {
     );
   }
 }
-

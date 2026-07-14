@@ -21,8 +21,8 @@ class ThemeProvider extends ChangeNotifier {
           (mode) => mode.toString() == savedTheme,
           orElse: () => ThemeMode.dark,
         );
-        notifyListeners();
       }
+      notifyListeners();
     } catch (e) {
       print('Erreur lors du chargement du thème: $e');
     }
@@ -46,4 +46,3 @@ class ThemeProvider extends ChangeNotifier {
     setThemeMode(_themeMode == ThemeMode.dark ? ThemeMode.light : ThemeMode.dark);
   }
 }
-

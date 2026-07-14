@@ -1,4 +1,6 @@
+import 'dart:convert';
 import 'dart:io';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:animate_do/animate_do.dart';
 import '../models/project.dart';
@@ -58,19 +60,7 @@ class ProjectCard extends StatelessWidget {
                     borderRadius: const BorderRadius.vertical(
                       top: Radius.circular(24),
                     ),
-                    child: Image.file(
-                      File(project.imagePath!),
-                      width: double.infinity,
-                      height: 150,
-                      fit: BoxFit.cover,
-                      errorBuilder: (context, error, stackTrace) {
-                        return Container(
-                          height: 150,
-                          color: Colors.grey[800],
-                          child: const Icon(Icons.broken_image, color: Colors.grey),
-                        );
-                      },
-                    ),
+                    child: _buildProjectImage(project.imagePath!),
                   ),
                 Padding(
                   padding: const EdgeInsets.all(20),
@@ -236,6 +226,52 @@ class ProjectCard extends StatelessWidget {
           ),
         ),
       ),
+    );
+  }
+
+  Widget _buildProjectImage(String imagePath) {
+    const width = double.infinity;
+    const height = 150.0;
+    final errorImage = Container(
+      height: height,
+      color: Colors.grey[800],
+      child: const Icon(Icons.broken_image, color: Colors.grey),
+    );
+    Widget errorBuilder(BuildContext context, Object error, StackTrace? stackTrace) =>
+        errorImage;
+
+    if (imagePath.startsWith('data:image/')) {
+      final commaIndex = imagePath.indexOf(',');
+      if (commaIndex == -1) return errorImage;
+      try {
+        return Image.memory(
+          base64Decode(imagePath.substring(commaIndex + 1)),
+          width: width,
+          height: height,
+          fit: BoxFit.cover,
+          errorBuilder: errorBuilder,
+        );
+      } on FormatException {
+        return errorImage;
+      }
+    }
+
+    if (kIsWeb) {
+      return Image.network(
+        imagePath,
+        width: width,
+        height: height,
+        fit: BoxFit.cover,
+        errorBuilder: errorBuilder,
+      );
+    }
+
+    return Image.file(
+      File(imagePath),
+      width: width,
+      height: height,
+      fit: BoxFit.cover,
+      errorBuilder: errorBuilder,
     );
   }
 

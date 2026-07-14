@@ -14,8 +14,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
   final _profileService = UserProfileService();
   final _firstNameController = TextEditingController();
   final _lastNameController = TextEditingController();
-  final _birthYearController = TextEditingController();
   final _phoneController = TextEditingController();
+  int? _selectedBirthYear;
 
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
@@ -37,11 +37,39 @@ class _ProfileScreenState extends State<ProfileScreen> {
   void dispose() {
     _firstNameController.dispose();
     _lastNameController.dispose();
-    _birthYearController.dispose();
     _phoneController.dispose();
     _emailController.dispose();
     _passwordController.dispose();
     super.dispose();
+  }
+
+  Future<void> _selectBirthYear() async {
+    final now = DateTime.now();
+    final firstDate = DateTime(1900);
+    final lastDate = DateTime(now.year - 5);
+
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: _selectedBirthYear != null ? DateTime(_selectedBirthYear!) : lastDate,
+      firstDate: firstDate,
+      lastDate: lastDate,
+      locale: const Locale('fr', 'FR'),
+      builder: (context, child) => Theme(
+        data: Theme.of(context).copyWith(
+          colorScheme: const ColorScheme.dark(
+            primary: Colors.deepPurpleAccent,
+            onPrimary: Colors.white,
+            surface: Color(0xFF1A1A1A),
+            onSurface: Colors.white,
+          ),
+        ),
+        child: child!,
+      ),
+    );
+
+    if (picked != null) {
+      setState(() => _selectedBirthYear = picked.year);
+    }
   }
 
   Future<void> _load() async {
@@ -59,7 +87,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       _firstNameController.text = (profile?['firstName'] ?? '').toString();
       _lastNameController.text = (profile?['lastName'] ?? '').toString();
       final birthYear = profile?['birthYear'];
-      _birthYearController.text = (birthYear is num) ? birthYear.toInt().toString() : '';
+      _selectedBirthYear = (birthYear is num) ? birthYear.toInt() : null;
       _phoneController.text = (profile?['phoneNumber'] ?? '').toString();
       _emailController.text = (user.email ?? '');
     } catch (e) {
@@ -75,10 +103,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
     final firstName = _firstNameController.text.trim();
     final lastName = _lastNameController.text.trim();
-    final birthYear = int.tryParse(_birthYearController.text.trim());
     final phoneNumber = _phoneController.text.trim();
 
-    if (firstName.isEmpty || lastName.isEmpty || birthYear == null) {
+    if (firstName.isEmpty || lastName.isEmpty || _selectedBirthYear == null) {
       setState(() => _error = 'Complète prénom/nom/année de naissance.');
       return;
     }
@@ -98,7 +125,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         uid: user.uid,
         firstName: firstName,
         lastName: lastName,
-        birthYear: birthYear,
+        birthYear: _selectedBirthYear!,
         phoneNumber: phoneNumber.isEmpty ? null : phoneNumber,
         email: user.email,
         displayName: user.displayName,
@@ -167,10 +194,29 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   decoration: const InputDecoration(labelText: 'Nom'),
                 ),
                 const SizedBox(height: 12),
-                TextField(
-                  controller: _birthYearController,
-                  keyboardType: TextInputType.number,
-                  decoration: const InputDecoration(labelText: 'Année de naissance'),
+                GestureDetector(
+                  onTap: _selectBirthYear,
+                  child: Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      border: Border.all(color: Colors.grey),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          _selectedBirthYear != null
+                              ? 'Année: $_selectedBirthYear'
+                              : 'Choisir l\'année de naissance',
+                          style: TextStyle(
+                            color: _selectedBirthYear != null ? Colors.white : Colors.grey,
+                          ),
+                        ),
+                        const Icon(Icons.calendar_today, color: Colors.deepPurpleAccent),
+                      ],
+                    ),
+                  ),
                 ),
                 const SizedBox(height: 12),
                 TextField(

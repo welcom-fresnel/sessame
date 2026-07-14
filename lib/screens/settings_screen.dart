@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-import '../providers/theme_provider.dart';
 import '../providers/premium_provider.dart';
 import '../services/auth_service.dart';
 import 'premium_screen.dart';
@@ -64,9 +63,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final themeProvider = context.watch<ThemeProvider>();
     final premiumProvider = context.watch<PremiumProvider>();
-    final isDark = themeProvider.isDarkMode;
 
     return Scaffold(
       appBar: AppBar(
@@ -286,4 +283,3 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
   }
 }
-
