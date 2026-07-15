@@ -478,7 +478,11 @@ class _ConversationScreenState extends State<ConversationScreen> {
                                         : Colors.transparent,
                                   ),
                                 ),
-                                child: ListTile(
+                                child: Material(
+                                  color: Colors.transparent,
+                                  borderRadius: BorderRadius.circular(12),
+                                  clipBehavior: Clip.antiAlias,
+                                  child: ListTile(
                                   leading: Container(
                                     padding: const EdgeInsets.all(8),
                                     decoration: BoxDecoration(
@@ -574,7 +578,8 @@ class _ConversationScreenState extends State<ConversationScreen> {
                                   ),
                                 ),
                               ),
-                            );
+                                ),
+                              );
                           },
                         ),
                 ),
@@ -742,4 +747,3 @@ class _ConversationScreenState extends State<ConversationScreen> {
     );
   }
 }
-

@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:timezone/timezone.dart' as tz;
 import 'package:timezone/data/latest_all.dart' as tz;
@@ -15,6 +16,15 @@ class NotificationService {
 
   Future<void> initialize() async {
     if (_initialized) return;
+
+    // Les notifications locales planifiées ne sont pas prises en charge dans
+    // le navigateur par ce plugin. Ne pas simuler un rappel avec un envoi
+    // immédiat : cela produisait une notification à chaque rechargement.
+    if (kIsWeb) {
+      _initialized = true;
+      print('ℹ️ Notifications locales planifiées indisponibles sur le Web.');
+      return;
+    }
 
     try {
       // Initialize timezone
@@ -107,6 +117,7 @@ class NotificationService {
 
   // Vérifier si les permissions sont accordées
   Future<bool> arePermissionsGranted() async {
+    if (kIsWeb) return false;
     final AndroidFlutterLocalNotificationsPlugin? androidImplementation =
         _notifications.resolvePlatformSpecificImplementation<
             AndroidFlutterLocalNotificationsPlugin>();
@@ -161,6 +172,11 @@ class NotificationService {
     String? payload,
   }) async {
     try {
+      if (kIsWeb) {
+        print('ℹ️ Rappel non programmé : les notifications locales ne sont pas disponibles sur le Web.');
+        return;
+      }
+
       // Vérifier les permissions avant de programmer
       final hasPermissions = await arePermissionsGranted();
       if (!hasPermissions) {
@@ -208,10 +224,10 @@ class NotificationService {
         print('Erreur cancel: $e');
       }
 
-      // Pour simplifier et éviter les erreurs d'API, on envoie la notification immédiatement
-      print('ℹ️ Envoi de la notification immédiatement (programmation en date future désactivée)');
-      await _notifications.show(
+      await _notifications.zonedSchedule(
         id: id,
+        scheduledDate: scheduledTime,
+        androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
         title: title,
         body: body,
         notificationDetails: details,
@@ -231,6 +247,7 @@ class NotificationService {
     String? payload,
   }) async {
     if (!_initialized) await initialize();
+    if (kIsWeb) return;
 
     const AndroidNotificationDetails androidDetails =
         AndroidNotificationDetails(

@@ -15,6 +15,7 @@ import 'providers/project_provider.dart';
 import 'providers/conversation_provider.dart';
 import 'providers/theme_provider.dart';
 import 'providers/premium_provider.dart';
+import 'providers/gamification_provider.dart';
 import 'screens/splash_screen.dart'; // Importation du SplashScreen
 import 'screens/auth_screen.dart'; // Importation de l'AuthScreen
 
@@ -88,6 +89,9 @@ class MyApp extends StatelessWidget {
         ),
         ChangeNotifierProvider(
           create: (context) => PremiumProvider(),
+        ),
+        ChangeNotifierProvider(
+          create: (context) => GamificationProvider(),
         ),
         ChangeNotifierProvider(
           create: (context) {

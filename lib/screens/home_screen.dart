@@ -9,6 +9,7 @@ import '../models/home_ad.dart';
 import '../providers/project_provider.dart';
 import '../services/ad_service.dart';
 import '../widgets/project_card.dart';
+import '../widgets/gamification_card.dart';
 import 'add_project_screen.dart';
 import 'statistics_screen.dart';
 import 'conversation.dart';
@@ -284,6 +285,8 @@ class _HomeScreenState extends State<HomeScreen> {
                         const SizedBox(height: 24),
                         // Résumé rapide
                         _buildSummaryCard(projectProvider),
+                        const SizedBox(height: 16),
+                        const GamificationCard(),
                         const SizedBox(height: 32),
                         // Filtres modernes
                         _buildFilters(),

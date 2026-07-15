@@ -8,6 +8,7 @@ import 'package:animate_do/animate_do.dart';
 import 'package:path_provider/path_provider.dart';
 import '../providers/premium_provider.dart';
 import '../providers/project_provider.dart';
+import '../widgets/gamification_card.dart';
 
 class StatisticsScreen extends StatefulWidget {
   const StatisticsScreen({super.key});
@@ -162,6 +163,8 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
                     ],
                   ),
 
+                  const SizedBox(height: 24),
+                  const GamificationCard(),
                   const SizedBox(height: 40),
 
                   if (_statValue('total') > 0) ...[

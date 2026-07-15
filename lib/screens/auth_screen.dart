@@ -67,7 +67,7 @@ class _AuthScreenState extends State<AuthScreen> with SingleTickerProviderStateM
       return false;
     }
     if (birthYear == null || birthYear < 1900 || birthYear > currentYear) {
-      setState(() => _error = "AnnÃ©e de naissance invalide.");
+      setState(() => _error = "Année de naissance invalide.");
       return false;
     }
     if (!_googleSignedIn) {
@@ -132,28 +132,28 @@ class _AuthScreenState extends State<AuthScreen> with SingleTickerProviderStateM
 
     if (code == 'google-sign-in-failed') {
       if (message.contains('canceled') || message.contains('cancelled')) {
-        return "Connexion Google annulÃ©e. VÃ©rifie que le tÃ©lÃ©phone a un compte Google connectÃ© (ParamÃ¨tres â†’ Comptes) et que Google Play services / Play Store sont Ã  jour, puis rÃ©essaie.";
+        return "Connexion Google annulée. Vérifie que le téléphone a un compte Google connecté (Paramètres → Comptes) et que Google Play services / Play Store sont à jour, puis réessaie.";
       }
       if (message.contains('developer_error') || message.contains('api exception: 10')) {
-        return "Google Sign-In refusÃ© (DEVELOPER_ERROR). Ã‡a arrive quand le SHA-1/SHA-256 ne correspond pas Ã  l'APK installÃ© ou que le packageName n'est pas le bon dans Firebase. Re-vÃ©rifie les empreintes et le package `com.example.sessame`.";
+        return "Google Sign-In refusé (DEVELOPER_ERROR). Ça arrive quand le SHA-1/SHA-256 ne correspond pas à l'APK installé ou que le packageName n'est pas le bon dans Firebase. Re-vérifie les empreintes et le package `com.example.sessame`.";
       }
       return e.message ?? "Erreur Google Sign-In.";
     }
 
     if (code.contains('billing') || message.contains('billing_not_enabled')) {
-      return "Firebase Phone Auth est bloquÃ©: Billing non activÃ© (reCAPTCHA/Play Integrity). Active la facturation sur le projet Google Cloud liÃ© Ã  Firebase, puis configure reCAPTCHA Enterprise pour l'auth tÃ©lÃ©phone. (Tu peux aussi utiliser des numÃ©ros de test en attendant.)";
+      return "Firebase Phone Auth est bloqué: Billing non activé (reCAPTCHA/Play Integrity). Active la facturation sur le projet Google Cloud lié à Firebase, puis configure reCAPTCHA Enterprise pour l'auth téléphone. (Tu peux aussi utiliser des numéros de test en attendant.)";
     }
 
     if (code == 'invalid-phone-number') {
-      return 'NumÃ©ro invalide. Utilise le format international, ex: +33612345678.';
+      return 'Numéro invalide. Utilise le format international, ex: +242066234425.';
     }
 
     if (code == 'too-many-requests') {
-      return "Trop d'essais. Attends un peu puis rÃ©essaie.";
+      return "Trop d'essais. Attends un peu puis réessaie.";
     }
 
     if (code == 'network-request-failed') {
-      return 'ProblÃ¨me rÃ©seau. VÃ©rifie internet puis rÃ©essaie.';
+      return 'Problème réseau. Vérifie internet puis réessaie.';
     }
 
     return e.message ?? "Erreur lors de l'envoi du code.";

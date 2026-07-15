@@ -6,6 +6,7 @@ import '../models/project.dart';
 import '../models/task.dart';
 import '../providers/project_provider.dart';
 import '../providers/premium_provider.dart';
+import '../providers/gamification_provider.dart';
 import '../services/ai_service.dart';
 import 'add_project_screen.dart';
 
@@ -88,6 +89,104 @@ class _ProjectDetailScreenState extends State<ProjectDetailScreen> {
         context,
       ).showSnackBar(SnackBar(content: Text('❌ Erreur: $e')));
     }
+  }
+
+  Future<void> _toggleTaskCompletion(Task task) async {
+    await context.read<ProjectProvider>().toggleTaskCompletion(task);
+    if (task.isCompleted || !mounted) return;
+
+    final reward = await context
+        .read<GamificationProvider>()
+        .rewardTaskCompletion(task.id);
+    if (reward == null || !mounted) return;
+
+    final celebration = reward.unlockedBadge == null
+        ? '+${reward.xp} XP • Continue comme ça !'
+        : '+${reward.xp} XP • 🏆 ${reward.unlockedBadge}';
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(celebration),
+        duration: const Duration(seconds: 2),
+        backgroundColor: const Color(0xFF3F2A78),
+      ),
+    );
+    if (reward.unlockedBadge != null) {
+      await _showAchievementDialog(reward);
+    }
+  }
+
+  Future<void> _showAchievementDialog(GamificationReward reward) {
+    return showGeneralDialog<void>(
+      context: context,
+      barrierDismissible: true,
+      barrierLabel: 'Récompense obtenue',
+      barrierColor: Colors.black54,
+      transitionDuration: const Duration(milliseconds: 500),
+      pageBuilder: (context, routeAnimation, secondaryAnimation) => Center(
+        child: Material(
+          color: Colors.transparent,
+          child: Container(
+            margin: const EdgeInsets.all(28),
+            padding: const EdgeInsets.all(28),
+            decoration: BoxDecoration(
+              gradient: const LinearGradient(
+                colors: [Color(0xFF4E2A84), Color(0xFF25143F)],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+              borderRadius: BorderRadius.circular(30),
+              border: Border.all(color: Colors.amber.withValues(alpha: 0.55)),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.amber.withValues(alpha: 0.22),
+                  blurRadius: 30,
+                  spreadRadius: 4,
+                ),
+              ],
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Text('🏆', style: TextStyle(fontSize: 64)),
+                const SizedBox(height: 12),
+                const Text(
+                  'Récompense obtenue !',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 22,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  reward.unlockedBadge!,
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(color: Colors.amber, fontSize: 18),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  '+${reward.xp} XP • Niveau ${reward.level}',
+                  style: const TextStyle(color: Colors.white70),
+                ),
+                const SizedBox(height: 20),
+                FilledButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: const Text('Continuer'),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+      transitionBuilder: (context, animation, _, child) {
+        final curved = CurvedAnimation(parent: animation, curve: Curves.elasticOut);
+        return FadeTransition(
+          opacity: animation,
+          child: ScaleTransition(scale: curved, child: child),
+        );
+      },
+    );
   }
 
   Future<void> _getAIAdvice() async {
@@ -963,13 +1062,25 @@ class _ProjectDetailScreenState extends State<ProjectDetailScreen> {
               ),
             ),
             onDismissed: (_) => _deleteTask(task),
-            child: Container(
-              margin: const EdgeInsets.only(bottom: 12),
-              decoration: BoxDecoration(
-                color: Colors.white.withValues(alpha: 0.02),
-                borderRadius: BorderRadius.circular(16),
-              ),
-              child: CheckboxListTile(
+            child: AnimatedOpacity(
+              duration: const Duration(milliseconds: 280),
+              curve: Curves.easeOut,
+              opacity: task.isCompleted ? 0.62 : 1,
+              child: AnimatedScale(
+                duration: const Duration(milliseconds: 280),
+                curve: Curves.easeOutBack,
+                scale: task.isCompleted ? 0.985 : 1,
+                child: Material(
+                  color: Colors.transparent,
+                  borderRadius: BorderRadius.circular(16),
+                  clipBehavior: Clip.antiAlias,
+                  child: Container(
+                    margin: const EdgeInsets.only(bottom: 12),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withValues(alpha: 0.02),
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                    child: CheckboxListTile(
                 value: task.isCompleted,
                 activeColor: Colors.deepPurpleAccent,
                 checkColor: Colors.white,
@@ -985,10 +1096,13 @@ class _ProjectDetailScreenState extends State<ProjectDetailScreen> {
                         : null,
                   ),
                 ),
-                onChanged: (val) => provider.toggleTaskCompletion(task),
+                onChanged: (_) => _toggleTaskCompletion(task),
                 controlAffinity: ListTileControlAffinity.leading,
+                  ),
+                ),
               ),
             ),
+          ),
           );
         }),
         const SizedBox(height: 20),

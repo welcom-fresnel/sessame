@@ -20,6 +20,10 @@ const GEMINI_API_VERSION = (process.env.GEMINI_API_VERSION || '').trim(); // e.g
 const GEMINI_MODELS_CACHE_TTL_MS = Number(process.env.GEMINI_MODELS_CACHE_TTL_MS || 10 * 60 * 1000); // 10 min
 const GROQ_MODEL = process.env.GROQ_MODEL || 'llama-3.3-70versatitle';
 
+// Max tokens configuration: configurable via env, safe defaults
+const MAX_TOKENS_ALLOWED = Number(process.env.MAX_TOKENS_ALLOWED || 2048);
+const DEFAULT_MAX_TOKENS = Number(process.env.DEFAULT_MAX_TOKENS || 1000);
+
 let geminiModelsIndexCache = { fetchedAt: 0, index: [] };
 
 function normalizeGeminiModelName(modelName) {
@@ -392,7 +396,10 @@ app.post('/api/openrouter', async (req, res) => {
 
   try {
     const defaultModel = AI_PROVIDER === 'openrouter' ? OPENROUTER_MODEL : GROQ_MODEL;
-    const { messages, model = defaultModel, max_tokens = 10000, temperature = 0.7 } = req.body;
+    const { messages, model = defaultModel, temperature = 0.7 } = req.body;
+    // Respect a server-side default and an upper bound to avoid abuse/cost/leaks
+    const requestedMax = Number(req.body?.max_tokens ?? DEFAULT_MAX_TOKENS);
+    const max_tokens = Math.max(1, Math.min(requestedMax, MAX_TOKENS_ALLOWED));
 
     // Valide l'input
     if (!messages || !Array.isArray(messages)) {
