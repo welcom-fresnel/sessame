@@ -14,6 +14,8 @@ const AI_PROVIDER = (process.env.AI_PROVIDER || 'chatgpt').toLowerCase();
 // ChatGPT / OpenAI
 const CHATGPT_API_KEY = process.env.CHATGPT_API_KEY;
 const CHATGPT_MODEL = process.env.CHATGPT_MODEL || process.env.OPENAI_MODEL || 'gpt-4o-mini';
+const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY;
+const OPENROUTER_MODEL = process.env.OPENROUTER_MODEL || 'openrouter/free';
 const GROQ_API_KEY = process.env.GROQ_API_KEY;
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
 const GEMINI_MODEL = process.env.GEMINI_MODEL || 'gemini-2.0-flash';
@@ -406,14 +408,18 @@ app.post('/api/chatgpt', async (req, res) => {
         ? 'gemini'
         : AI_PROVIDER === 'groq'
           ? 'groq'
-          : 'chatgpt';
+          : AI_PROVIDER === 'openrouter' || AI_PROVIDER === 'open_router'
+            ? 'openrouter'
+            : 'chatgpt';
 
     const defaultModel =
       provider === 'groq'
         ? GROQ_MODEL
         : provider === 'gemini'
           ? GEMINI_MODEL
-          : CHATGPT_MODEL;
+          : provider === 'openrouter'
+            ? OPENROUTER_MODEL
+            : CHATGPT_MODEL;
 
     const model = req.body?.model || defaultModel;
 
@@ -436,7 +442,22 @@ app.post('/api/chatgpt', async (req, res) => {
 
     console.log(`AI request: provider=${provider}, model=${model}, max_tokens=${max_tokens}`);
 
-    // No OpenRouter support: ChatGPT is the primary provider now.
+    if (provider === 'openrouter' && !OPENROUTER_API_KEY) {
+      await logAiRequest({
+        status: 'error',
+        errorMessage: 'OPENROUTER_API_KEY not configured on server',
+        model,
+        max_tokens,
+        temperature,
+        messages,
+        clientProfile,
+        clientId,
+        ip,
+        userAgent,
+        latencyMs: Date.now() - startedAt,
+      });
+      return res.status(500).json({ error: 'OPENROUTER_API_KEY not configured on server' });
+    }
 
     if (provider === 'groq' && !GROQ_API_KEY) {
       await logAiRequest({
@@ -508,6 +529,22 @@ app.post('/api/chatgpt', async (req, res) => {
                 },
               },
             )
+          : provider === 'openrouter'
+            ? await axios.post(
+                'https://openrouter.ai/api/v1/chat/completions',
+                {
+                  model,
+                  messages,
+                  max_tokens,
+                  temperature,
+                },
+                {
+                  headers: {
+                    Authorization: `Bearer ${OPENROUTER_API_KEY}`,
+                    'Content-Type': 'application/json',
+                  },
+                },
+              )
           : provider === 'chatgpt'
             ? await axios.post(
                 'https://api.openai.com/v1/chat/completions',
@@ -610,9 +647,14 @@ app.listen(PORT, HOST, () => {
   console.log(`🌐 API endpoint: http://${HOST}:${PORT}/api/chatgpt`);
   console.log(`📊 Health check: http://${HOST}:${PORT}/health`);
   console.log(`AI_PROVIDER: ${AI_PROVIDER}`);
-  console.log(`Keys present: CHATGPT=${!!CHATGPT_API_KEY}, GROQ=${!!GROQ_API_KEY}, GEMINI=${!!GEMINI_API_KEY}`);
+  console.log(
+    `Keys present: CHATGPT=${!!CHATGPT_API_KEY}, OPENROUTER=${!!OPENROUTER_API_KEY}, GROQ=${!!GROQ_API_KEY}, GEMINI=${!!GEMINI_API_KEY}`,
+  );
   if (AI_PROVIDER === 'chatgpt' && !CHATGPT_API_KEY) {
     console.warn('Warning: AI_PROVIDER=chatgpt but CHATGPT_API_KEY is not set');
+  }
+  if ((AI_PROVIDER === 'openrouter' || AI_PROVIDER === 'open_router') && !OPENROUTER_API_KEY) {
+    console.warn('Warning: AI_PROVIDER=openrouter but OPENROUTER_API_KEY is not set');
   }
 });
 
