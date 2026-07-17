@@ -9,7 +9,7 @@ class AdService {
   factory AdService() => _instance;
   AdService._internal();
 
-  static const String _backendUrl = 'https://sessame-kxqo.onrender.com';
+  static const String _backendUrl = 'https://sessame.onrender.com';
 
   Future<List<HomeAd>> getHomeSummaryAds() async {
     try {

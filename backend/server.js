@@ -10,9 +10,10 @@ dotenv.config();
 const app = express();
 const PORT = process.env.PORT || 3000;
 const HOST = '0.0.0.0';
-const AI_PROVIDER = (process.env.AI_PROVIDER || 'openrouter').toLowerCase();
-const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY;
-const OPENROUTER_MODEL = process.env.OPENROUTER_MODEL || 'deepseek/deepseek-v4-flash:free';
+const AI_PROVIDER = (process.env.AI_PROVIDER || 'chatgpt').toLowerCase();
+// ChatGPT / OpenAI
+const CHATGPT_API_KEY = process.env.CHATGPT_API_KEY;
+const CHATGPT_MODEL = process.env.CHATGPT_MODEL || process.env.OPENAI_MODEL || 'gpt-4o-mini';
 const GROQ_API_KEY = process.env.GROQ_API_KEY;
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
 const GEMINI_MODEL = process.env.GEMINI_MODEL || 'gemini-1.5-flash-latest';
@@ -383,8 +384,8 @@ app.get('/api/gemini/models', async (req, res) => {
   }
 });
 
-// Route principale pour appeller OpenRouter
-app.post('/api/openrouter', async (req, res) => {
+// Route principale pour appeler ChatGPT (remplace OpenRouter)
+app.post('/api/chatgpt', async (req, res) => {
   const startedAt = Date.now();
   const ip =
     (req.headers['x-forwarded-for'] || '').toString().split(',')[0].trim() ||
@@ -395,11 +396,26 @@ app.post('/api/openrouter', async (req, res) => {
   const clientProfile = req.body?.client_profile || null;
 
   try {
-    const defaultModel = AI_PROVIDER === 'openrouter' ? OPENROUTER_MODEL : GROQ_MODEL;
-    const { messages, model = defaultModel, temperature = 0.7 } = req.body;
+    const { messages, temperature = 0.7 } = req.body;
     // Respect a server-side default and an upper bound to avoid abuse/cost/leaks
     const requestedMax = Number(req.body?.max_tokens ?? DEFAULT_MAX_TOKENS);
     const max_tokens = Math.max(1, Math.min(requestedMax, MAX_TOKENS_ALLOWED));
+
+    const provider =
+      AI_PROVIDER === 'gemini' || AI_PROVIDER === 'google_gemini'
+        ? 'gemini'
+        : AI_PROVIDER === 'groq'
+          ? 'groq'
+          : 'chatgpt';
+
+    const defaultModel =
+      provider === 'groq'
+        ? GROQ_MODEL
+        : provider === 'gemini'
+          ? GEMINI_MODEL
+          : CHATGPT_MODEL;
+
+    const model = req.body?.model || defaultModel;
 
     // Valide l'input
     if (!messages || !Array.isArray(messages)) {
@@ -418,29 +434,9 @@ app.post('/api/openrouter', async (req, res) => {
       return res.status(400).json({ error: 'messages must be an array' });
     }
 
-    const provider =
-      AI_PROVIDER === 'gemini' || AI_PROVIDER === 'google_gemini'
-        ? 'gemini'
-        : AI_PROVIDER === 'groq'
-          ? 'groq'
-          : 'openrouter';
+    console.log(`AI request: provider=${provider}, model=${model}, max_tokens=${max_tokens}`);
 
-    if (provider === 'openrouter' && !OPENROUTER_API_KEY) {
-      await logAiRequest({
-        status: 'error',
-        errorMessage: 'OPENROUTER_API_KEY not configured on server',
-        model,
-        max_tokens,
-        temperature,
-        messages,
-        clientProfile,
-        clientId,
-        ip,
-        userAgent,
-        latencyMs: Date.now() - startedAt,
-      });
-      return res.status(500).json({ error: 'OPENROUTER_API_KEY not configured on server' });
-    }
+    // No OpenRouter support: ChatGPT is the primary provider now.
 
     if (provider === 'groq' && !GROQ_API_KEY) {
       await logAiRequest({
@@ -476,6 +472,23 @@ app.post('/api/openrouter', async (req, res) => {
       return res.status(500).json({ error: 'GEMINI_API_KEY not configured on server' });
     }
 
+    if (provider === 'chatgpt' && !CHATGPT_API_KEY) {
+      await logAiRequest({
+        status: 'error',
+        errorMessage: 'CHATGPT_API_KEY not configured on server',
+        model,
+        max_tokens,
+        temperature,
+        messages,
+        clientProfile,
+        clientId,
+        ip,
+        userAgent,
+        latencyMs: Date.now() - startedAt,
+      });
+      return res.status(500).json({ error: 'CHATGPT_API_KEY not configured on server' });
+    }
+
     const response =
       provider === 'gemini'
         ? await callGeminiWithFallback({ messages, max_tokens, temperature })
@@ -495,23 +508,26 @@ app.post('/api/openrouter', async (req, res) => {
                 },
               },
             )
-          : await axios.post(
-              'https://openrouter.ai/api/v1/chat/completions',
-              {
-                model,
-                messages,
-                max_tokens,
-                temperature,
-              },
-              {
-                headers: {
-                  'Authorization': `Bearer ${OPENROUTER_API_KEY}`,
-                  'HTTP-Referer': 'https://github.com/welcom-fresnel/sessame.git',
-                  'X-Title': 'Sessame',
-                  'Content-Type': 'application/json',
+          : provider === 'chatgpt'
+            ? await axios.post(
+                'https://api.openai.com/v1/chat/completions',
+                {
+                  model,
+                  messages,
+                  max_tokens,
+                  temperature,
                 },
-              },
-            );
+                {
+                  headers: {
+                    Authorization: `Bearer ${CHATGPT_API_KEY}`,
+                    'Content-Type': 'application/json',
+                  },
+                },
+              )
+            : (() => {
+                // Unknown provider branch - refuse to proceed
+                throw new Error(`Unsupported AI provider: ${provider}`);
+              })();
 
     const responseData = response.data;
     let formattedResponse = responseData;
@@ -591,8 +607,13 @@ app.use((req, res) => {
 // Démarre le serveur
 app.listen(PORT, HOST, () => {
   console.log(`🚀 Server running on port ${PORT}`);
-  console.log(`🌐 API endpoint: http://${HOST}:${PORT}/api/openrouter`);
+  console.log(`🌐 API endpoint: http://${HOST}:${PORT}/api/chatgpt`);
   console.log(`📊 Health check: http://${HOST}:${PORT}/health`);
+  console.log(`AI_PROVIDER: ${AI_PROVIDER}`);
+  console.log(`Keys present: CHATGPT=${!!CHATGPT_API_KEY}, GROQ=${!!GROQ_API_KEY}, GEMINI=${!!GEMINI_API_KEY}`);
+  if (AI_PROVIDER === 'chatgpt' && !CHATGPT_API_KEY) {
+    console.warn('Warning: AI_PROVIDER=chatgpt but CHATGPT_API_KEY is not set');
+  }
 });
 
 // Ping automatique toutes les 2 minutes pour garder Render éveillé

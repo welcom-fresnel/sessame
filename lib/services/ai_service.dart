@@ -17,8 +17,8 @@ class AIService {
   AIService._internal();
 
   /// À remplacer par ton URL après le déploiement
-  static const String _backendUrl = 'https://sessame-kxqo.onrender.com'; // Replace with your Railway URL
-  static const String _model = 'llama-3.3-70versatitle';
+  static const String _backendUrl = 'https://sessame.onrender.com'; // Replace with your Railway URL
+  static const String _model = 'gpt-4o-mini';
 
 
 
@@ -27,15 +27,15 @@ class AIService {
     // Rien à initialiser maintenant
   }
 
-  Future<String> _callOpenRouter(String prompt) async {
-    return _callOpenRouterWithMessages(
+  Future<String> _callchatgpt(String prompt) async {
+    return _callchatgptWithMessages(
       [
         {"role": "user", "content": prompt},
       ],
     );
   }
 
-  Future<String> _callOpenRouterWithMessages(
+  Future<String> _callchatgptWithMessages(
     List<Map<String, String>> messages, {
     String? model,
     int maxTokens = 800,
@@ -64,7 +64,7 @@ class AIService {
     try {
       final response = await http
           .post(
-            Uri.parse("$_backendUrl/api/openrouter"),
+            Uri.parse("$_backendUrl/api/chatgpt"),
             headers: headers,
             body: body,
           )
@@ -96,7 +96,7 @@ class AIService {
     int maxTokens = 800,
     double temperature = 0.7,
   }) {
-    return _callOpenRouterWithMessages(
+    return _callchatgptWithMessages(
       messages,
       model: model,
       maxTokens: maxTokens,
@@ -135,7 +135,7 @@ Ton conseil doit être :
 Réponds UNIQUEMENT avec le conseil, sans introduction.
 """;
 
-      final response = await _callOpenRouter(prompt);
+      final response = await _callchatgpt(prompt);
       return response.trim();
     } catch (e) {
       print('Erreur IA getProjectAdvice: $e');
@@ -152,35 +152,61 @@ Réponds UNIQUEMENT avec le conseil, sans introduction.
       final totalTasks = tasks.length;
       final progressPercent = (project.progress * 100).toInt();
 
-      final prompt =
-          """
-Tu es un coach projet premium très concret.
+      // Construire les listes de titres avant l'appel pour respecter la règle "ne jamais reproposer"
+      final completedTaskTitles = tasks
+          .where((t) => t.isCompleted)
+          .map((t) => t.title.replaceAll('\n', ' ').trim())
+          .toList();
 
-Analyse ce projet et propose exactement 5 étapes détaillées pour aider l'utilisateur à avancer sans blocage.
+      final remainingTaskTitles = tasks
+          .where((t) => !t.isCompleted)
+          .map((t) => t.title.replaceAll('\n', ' ').trim())
+          .toList();
 
-📋 Projet : "${project.title}"
-📝 Description : ${project.description}
-📊 Progression : $progressPercent%
-⏰ Jours restants : ${project.daysRemaining} jour${project.daysRemaining.abs() > 1 ? 's' : ''}
-${project.isOverdue ? '⚠️ EN RETARD' : ''}
-✅ Tâches complétées : $completedTasks sur $totalTasks
+            final prompt =
+              """
+          Tu es un coach projet premium, direct et très concret. Tu ne fais jamais de blabla motivationnel générique.
 
-Règles :
-- Chaque titre doit être court et commencer par un verbe d'action
-- Chaque détail doit expliquer précisément quoi faire, dans quel ordre, et quel résultat obtenir
-- Langue : français naturel
-- Pas d'introduction, pas de conclusion
+          CONTEXTE PROJET
+          Titre : ${project.title}
+          Description : ${project.description}
+          Progression : $progressPercent%
+          Jours restants : ${project.daysRemaining} jour${project.daysRemaining.abs() > 1 ? 's' : ''}
+          Statut : ${project.isOverdue ? 'EN RETARD' : 'dans les temps'}
+          Tâches déjà complétées ($completedTasks/$totalTasks) : ${completedTaskTitles.isNotEmpty ? completedTaskTitles.join(', ') : 'Aucune'}
+          Tâches restantes non terminées : ${remainingTaskTitles.isNotEmpty ? remainingTaskTitles.join(', ') : 'Aucune'}
 
-Format strict obligatoire :
-TITRE: Premier titre
-DETAIL: Description précise de l'action.
----
-TITRE: Deuxième titre
-DETAIL: Description précise de l'action.
----
-""";
+          MISSION
+          Propose exactement 5 étapes concrètes et actionnables pour faire avancer ce projet.
 
-      final response = await _callOpenRouterWithMessages(
+          RÈGLES STRICTES
+          - Ne jamais reproposer une étape déjà couverte par les tâches complétées ou restantes listées ci-dessus
+          - Les 5 étapes doivent être dans un ordre logique d'exécution (dépendances respectées)
+          - Si le projet est EN RETARD : la première étape doit être une action de rattrapage ou de recadrage (pas une étape normale de progression)
+          - Si la progression est à 0% ou proche : commencer par une étape de cadrage/démarrage concrète
+          - Chaque titre : 3 à 7 mots, commence par un verbe d'action à l'infinitif
+          - Chaque détail : 1 à 2 phrases maximum, dit précisément QUOI faire, avec QUOI/QUI, et quel résultat attendu — jamais de conseil vague type "prends le temps de réfléchir"
+          - Langue : français naturel, ton direct, zéro superflu
+          - Aucun texte avant la première étape, aucun texte après la dernière
+          - Respecte EXACTEMENT le format ci-dessous, sans emoji, sans markdown, sans numérotation manuelle
+
+          FORMAT DE SORTIE OBLIGATOIRE (rien d'autre)
+          TITRE: [titre étape 1]
+          DETAIL: [détail étape 1]
+          ---
+          TITRE: [titre étape 2]
+          DETAIL: [détail étape 2]
+          ---
+          TITRE: [titre étape 3]
+          DETAIL: [détail étape 3]
+          ---
+          TITRE: [titre étape 4]
+          DETAIL: [détail étape 4]
+          ---
+          TITRE: [titre étape 5]
+          DETAIL: [détail étape 5]
+          """;
+      final response = await _callchatgptWithMessages(
         [
           {"role": "user", "content": prompt},
         ],
@@ -211,11 +237,16 @@ DETAIL: Description précise de l'action.
   }
 
   List<PremiumAIAdviceStep> _parsePremiumSteps(String response) {
-    final blocks = response.split('---');
+    // Split en blocs en tolérant des espaces et lignes vides autour des séparateurs '---'
+    final separator = RegExp(r"\n\s*---\s*\n");
+    final blocks = response.split(separator);
     final steps = <PremiumAIAdviceStep>[];
 
     for (final block in blocks) {
-      final lines = block
+      final trimmedBlock = block.trim();
+      if (trimmedBlock.isEmpty) continue;
+
+      final lines = trimmedBlock
           .split('\n')
           .map((line) => line.trim())
           .where((line) => line.isNotEmpty)
@@ -270,7 +301,7 @@ Définir un planning réaliste
 Réponds UNIQUEMENT avec les 5 étapes, une par ligne, sans numérotation ni introduction.
 """;
 
-      final response = await _callOpenRouter(prompt);
+      final response = await _callchatgpt(prompt);
       return response
           .split('\n')
           .where((line) => line.trim().isNotEmpty)
@@ -295,7 +326,7 @@ Longueur : maximum 15 mots.
 Réponds UNIQUEMENT avec la phrase, sans guillemets.
 """;
 
-      final response = await _callOpenRouter(prompt);
+      final response = await _callchatgpt(prompt);
       return response.trim();
     } catch (e) {
       print('Erreur motivation: $e');

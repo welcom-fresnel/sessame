@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
-import '../services/get_open_router.dart';
+import '../services/get_chatgpt.dart';
 import '../models/message.dart';
 import '../models/task.dart';
 import '../providers/conversation_provider.dart';
@@ -124,7 +124,7 @@ class _ConversationScreenState extends State<ConversationScreen> {
       }
 
       // Obtenir la réponse de l'IA avec le contexte
-      String aiResponse = await getOpenRouterResponse(
+      String aiResponse = await getChatgptResponse(
         userMessage,
         conversationHistory: historyForAI,
         userProjects: userProjects,

@@ -1,14 +1,14 @@
 {
   "name": "sessame-backend",
   "version": "1.0.0",
-  "description": "Backend for Sessame app - OpenRouter API proxy",
+  "description": "Backend for Sessame app - ChatGPT / OpenAI proxy",
   "main": "server.js",
   "type": "module",
   "scripts": {
     "start": "node server.js",
     "dev": "node --watch server.js"
   },
-  "keywords": ["sessame", "openrouter", "api"],
+  "keywords": ["sessame", "chatgpt", "openai", "api"],
   "author": "",
   "license": "ISC",
   "dependencies": {

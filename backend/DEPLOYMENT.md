@@ -37,10 +37,10 @@ git push -u origin main
    - **Key**: `GROQ_API_KEY`
    - **Value**: `gsk_xxxxxxxxxxxxx` (ta vraie clÃ©)
 
-**Option OpenRouter**
-- `AI_PROVIDER=openrouter`
-- `OPENROUTER_API_KEY=...`
-- `OPENROUTER_MODEL=deepseek/deepseek-v4-flash:free`
+**Option ChatGPT / OpenAI**
+- `AI_PROVIDER=chatgpt`
+- `CHATGPT_API_KEY=...`
+- `CHATGPT_MODEL=gpt-4o-mini`
 
 **Option Groq**
 - `AI_PROVIDER=groq`
@@ -76,7 +76,7 @@ Tu devrais voir:
 
 âœ… **Ã€ supprimer:**
 - Ancien `.env` local avec la clÃ© exposÃ©e
-- La clÃ© ancienne sur OpenRouter (si tu n'en as plus besoin)
+- La clé ancienne sur OpenRouter (si tu n'en as plus besoin)
 
 ## ðŸ› ï¸ RedÃ©ploiement
 
@@ -102,7 +102,7 @@ Railroad redÃ©ploiera automatiquement en quelques secondes.
 - Attends 30 secondes que les changements se propagent
 
 **l'API rÃ©pond "API_KEY not configured"?**
-- VÃ©rifie que la variable (`GROQ_API_KEY` / `OPENROUTER_API_KEY` / `GEMINI_API_KEY`) est bien ajoutÃ©e
+- Vérifie que la variable (`GROQ_API_KEY` / `CHATGPT_API_KEY` / `GEMINI_API_KEY`) est bien ajoutée
 
 ## ðŸ“Š Monitoring
 

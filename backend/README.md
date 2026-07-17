@@ -4,8 +4,8 @@ Backend Node.js qui gère l'accès sécurisé à une API IA (Groq par défaut).
 
 ## 📋 Fonctionnement
 
-- ✅ Gère la clé API IA de façon sécurisée (Groq / OpenRouter / Gemini)
-- ✅ Expose un endpoint `/api/openrouter` pour l'app Flutter
+- ✅ Gère la clé API IA de façon sécurisée (Groq / ChatGPT / Gemini)
+- ✅ Expose un endpoint `/api/chatgpt` pour l'app Flutter
 - ✅ Validation et gestion d'erreurs
 - ✅ CORS activé pour l'app Flutter
 
@@ -32,7 +32,7 @@ Le serveur sera disponible à http://localhost:3000
 
 ## 📡 Endpoints
 
-### POST `/api/openrouter`
+### POST `/api/chatgpt`
 
 Appelle l'API IA avec le message utilisateur (Groq par défaut).
 

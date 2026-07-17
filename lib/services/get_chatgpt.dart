@@ -104,5 +104,3 @@ Aide-le a en creer ou reponds de maniere decontractee et amicale.
     );
   }
 }
-
-
